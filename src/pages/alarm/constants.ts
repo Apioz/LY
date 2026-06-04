@@ -1,14 +1,27 @@
-export const ALARM_LEVELS = ['一级告警', '二级告警', '三级告警', '四级告警', '五级告警'] as const
+export const ALARM_LEVELS = ['一级告警', '二级告警', '三级告警', '四级告警'] as const
 export const ALARM_STATUS = ['待处理', '已处理', '误报', '损坏'] as const
-export const ALARM_TYPES = ['设备告警', '事件上报', '消防', '电气', '安防', '环境'] as const
-export const DEFENSE_TYPES = ['人防数据', '技防数据'] as const
+/** 告警列表-告警描述 */
+export const ALARM_DESC_TYPES = ['火灾报警', '故障报警', '设备超时'] as const
+/** 告警设置 / 列表 - 告警设备（系统内设备） */
+export const ALARM_DEVICES = [
+  '消防主机',
+  '烟感探测器',
+  '温感探测器',
+  '配电柜',
+  '生活水泵',
+  '消防水泵',
+  '电梯设备',
+  '门禁系统',
+  '监控摄像头',
+  '防火门',
+] as const
+export const DEFAULT_TIMEOUT_MINUTES = 30
 
 export const LEVEL_COLORS: Record<string, string> = {
   一级告警: '#ff4d4f',
   二级告警: '#fa8c16',
   三级告警: '#fadb14',
   四级告警: '#1890ff',
-  五级告警: '#9254de',
   一级预警: '#ff4d4f',
   二级预警: '#fa8c16',
   三级预警: '#fadb14',
@@ -17,3 +30,4 @@ export const LEVEL_COLORS: Record<string, string> = {
 
 export type AlarmLevel = (typeof ALARM_LEVELS)[number]
 export type AlarmStatus = (typeof ALARM_STATUS)[number]
+export type AlarmDescType = (typeof ALARM_DESC_TYPES)[number]

@@ -10,7 +10,7 @@ const reportColumns = [
   { title: '管理中心', dataIndex: 'center', width: 100 },
   { title: '安全类别', dataIndex: 'safetyCategory', width: 100 },
   { title: '管理类别', dataIndex: 'category', width: 90 },
-  { title: '十大低老坏', dataIndex: 'tenLow', width: 110 },
+  { title: '安全等级', dataIndex: 'safetyLevel', width: 100 },
   { title: '问题描述', dataIndex: 'desc', width: 120 },
   { title: '整改期限', dataIndex: 'deadline', width: 110 },
   { title: '整改措施', dataIndex: 'measure', width: 100 },
@@ -33,8 +33,8 @@ export default function InspectionReport() {
         <Space wrap>
           <span>管理中心：</span>
           <Select placeholder="请选择 管理中心" style={{ width: 180 }} allowClear />
-          <span>十大低老坏：</span>
-          <Select placeholder="请选择 十大低老坏" style={{ width: 180 }} allowClear />
+          <span>安全等级：</span>
+          <Select placeholder="请选择 安全等级" style={{ width: 180 }} allowClear options={[{ value: '一级' }, { value: '二级' }, { value: '三级' }, { value: '四级' }]} />
           <span>整改实际完成日期：</span>
           <DatePicker.RangePicker placeholder={['开始', '结束']} />
         </Space>

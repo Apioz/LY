@@ -10,7 +10,6 @@ interface ConfigRow {
   item: string
   category: string
   safetyLevel: string
-  tenSigns: string
   sort: number
   remark: string
   updater: string
@@ -29,7 +28,6 @@ export default function InspectionContentConfig() {
     { title: '检查项目', dataIndex: 'item', ellipsis: true },
     { title: '安全类别', dataIndex: 'category', width: 110 },
     { title: '安全等级', dataIndex: 'safetyLevel', width: 90 },
-    { title: '十大征兆项', dataIndex: 'tenSigns', width: 110 },
     { title: '排序', dataIndex: 'sort', width: 70 },
     { title: '备注', dataIndex: 'remark', width: 80 },
     { title: '更新人', dataIndex: 'updater', width: 80 },
@@ -82,11 +80,6 @@ export default function InspectionContentConfig() {
         <Col span={12}>
           <Form.Item name="safetyLevel" label="安全等级" rules={[{ required: true, message: '请选择 安全等级' }]}>
             <Select placeholder="请选择 安全等级" options={safetyLevelOptions.map((v) => ({ value: v, label: v }))} />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item name="tenSigns" label="十大低老坏">
-            <Select placeholder="请选择 十大低老坏" options={[{ value: '消防通道' }]} />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -150,7 +143,6 @@ export default function InspectionContentConfig() {
             <Descriptions.Item label="检查项目">{form.getFieldValue('item')}</Descriptions.Item>
             <Descriptions.Item label="安全类别">{form.getFieldValue('category')}</Descriptions.Item>
             <Descriptions.Item label="安全等级">{form.getFieldValue('safetyLevel')}</Descriptions.Item>
-            <Descriptions.Item label="十大征兆项">{form.getFieldValue('tenSigns')}</Descriptions.Item>
             <Descriptions.Item label="排序">{form.getFieldValue('sort')}</Descriptions.Item>
             <Descriptions.Item label="备注">{form.getFieldValue('remark')}</Descriptions.Item>
             <Descriptions.Item label="更新人">{form.getFieldValue('updater')}</Descriptions.Item>

@@ -147,6 +147,21 @@ export const rectificationPieData = [
   { name: '处理完成', value: 25 },
 ]
 
+/** 安全检查统计 - 按安全等级 */
+export const safetyLevelPieData = [
+  { name: '一级', value: 18 },
+  { name: '二级', value: 32 },
+  { name: '三级', value: 45 },
+  { name: '四级', value: 23 },
+]
+
+export const SAFETY_LEVEL_COLORS: Record<string, string> = {
+  一级: '#ff4d4f',
+  二级: '#fa8c16',
+  三级: '#fadb14',
+  四级: '#1890ff',
+}
+
 export function getLineDataByMonth(year: number, month: number) {
   const days = new Date(year, month, 0).getDate()
   const data: number[] = []

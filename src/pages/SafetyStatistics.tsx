@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react'
 import { Row, Col, Card, Radio, DatePicker, Button, Table, Space, Select } from 'antd'
 import ReactECharts from 'echarts-for-react'
 import dayjs, { Dayjs } from 'dayjs'
-import { categoryPieData, rectificationPieData, getLineDataByMonth } from '../mock/data'
+import {
+  categoryPieData,
+  rectificationPieData,
+  safetyLevelPieData,
+  SAFETY_LEVEL_COLORS,
+  getLineDataByMonth,
+} from '../mock/data'
 
 const QUARTER_OPTIONS = [
   { value: 1, label: '第一季度' },
@@ -70,6 +76,41 @@ export default function SafetyStatistics() {
     [],
   )
 
+  const safetyLevelPie = useMemo(
+    () => ({
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}：{c} 项 ({d}%)',
+      },
+      legend: { orient: 'vertical', left: 'left', top: 'middle' },
+      series: [
+        {
+          type: 'pie',
+          radius: ['40%', '68%'],
+          center: ['58%', '50%'],
+          label: { formatter: '{b}\n{c}项' },
+          data: safetyLevelPieData.map((d) => ({
+            name: d.name,
+            value: d.value,
+            itemStyle: { color: SAFETY_LEVEL_COLORS[d.name] },
+          })),
+        },
+      ],
+    }),
+    [],
+  )
+
+  const safetyLevelTable = useMemo(
+    () =>
+      safetyLevelPieData.map((d) => ({
+        key: d.name,
+        level: d.name,
+        count: d.value,
+        percent: `${((d.value / safetyLevelPieData.reduce((s, x) => s + x.value, 0)) * 100).toFixed(1)}%`,
+      })),
+    [],
+  )
+
   const timeControl =
     period === 'quarter' ? (
       <Select
@@ -121,6 +162,28 @@ export default function SafetyStatistics() {
           </Card>
         </Col>
         <Col span={12}>
+          <Card title="按安全等级统计" size="small">
+            <Row gutter={16}>
+              <Col span={14}>
+                <ReactECharts option={safetyLevelPie} style={{ height: 320 }} />
+              </Col>
+              <Col span={10}>
+                <Table
+                  size="small"
+                  pagination={false}
+                  style={{ marginTop: 24 }}
+                  columns={[
+                    { title: '安全等级', dataIndex: 'level', width: 80 },
+                    { title: '检查项数', dataIndex: 'count', width: 80, align: 'right' },
+                    { title: '占比', dataIndex: 'percent', width: 72, align: 'right' },
+                  ]}
+                  dataSource={safetyLevelTable}
+                />
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+        <Col span={24}>
           <Card title="按隐患及复出问题TOP5" size="small">
             <Table
               size="small"

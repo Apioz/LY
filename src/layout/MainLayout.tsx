@@ -10,6 +10,14 @@ import {
   MenuUnfoldOutlined,
   HomeOutlined,
   MoreOutlined,
+  AppstoreOutlined,
+  FireOutlined,
+  VideoCameraOutlined,
+  FileProtectOutlined,
+  ReadOutlined,
+  ThunderboltOutlined,
+  FolderOpenOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { menuItems, pageTitles, type MenuKey } from '../menu'
@@ -18,8 +26,18 @@ const { Header, Sider, Content } = Layout
 
 const groupIcons: Record<string, React.ReactNode> = {
   'group-safety': <SafetyCertificateOutlined />,
+  'safety-norm': <FileProtectOutlined />,
+  'group-education': <ReadOutlined />,
+  'group-drill': <ThunderboltOutlined />,
+  'group-archive': <FolderOpenOutlined />,
+  'group-project-archive': <FolderOpenOutlined />,
   'group-alarm': <AlertOutlined />,
   'facility-work-order': <ToolOutlined />,
+  'group-device-mgmt': <AppstoreOutlined />,
+  'group-fire-device': <FireOutlined />,
+  'group-monitor-device': <VideoCameraOutlined />,
+  'group-basic': <DatabaseOutlined />,
+  'group-equip-archive': <AppstoreOutlined />,
   'group-system': <SettingOutlined />,
 }
 
@@ -35,6 +53,7 @@ function buildAntMenuItems(items: typeof menuItems, onNavigate: (k: MenuKey) => 
     }
     return {
       key: item.key,
+      icon: groupIcons[item.key],
       label: item.label,
       onClick: () => item.route && onNavigate(item.route),
     }
@@ -85,7 +104,24 @@ export default function MainLayout({ activeKey, onNavigate, children }: MainLayo
     ) {
       keys.push('group-safety', 'group-inspection-mgmt')
     }
+    if (['training-materials', 'personnel-qualification'].includes(activeKey)) keys.push('group-education')
+    if (['drill-plan', 'drill-implement'].includes(activeKey)) keys.push('group-drill')
+    if (
+      ['archive-all-projects', 'archive-maintenance', 'archive-renovation', 'archive-lease'].includes(activeKey)
+    ) {
+      keys.push('group-archive', 'group-project-archive')
+    }
     if (['alarm-stats', 'alarm-list', 'alarm-settings'].includes(activeKey)) keys.push('group-alarm')
+    if (['fire-device-mgmt', 'fire-event-alarm'].includes(activeKey)) {
+      keys.push('group-device-mgmt', 'group-fire-device')
+    }
+    if (['monitor-device-mgmt', 'resource-monitor-view'].includes(activeKey)) {
+      keys.push('group-device-mgmt', 'group-monitor-device')
+    }
+    if (['personnel-grid', 'plot-org-structure'].includes(activeKey)) keys.push('group-basic')
+    if (['special-equipment', 'gas-equipment', 'charging-pile'].includes(activeKey)) {
+      keys.push('group-basic', 'group-equip-archive')
+    }
     if (['inspection-content-config', 'system-dictionary'].includes(activeKey)) keys.push('group-system')
     return keys
   }, [activeKey])
