@@ -162,15 +162,121 @@ export const SAFETY_LEVEL_COLORS: Record<string, string> = {
   四级: '#1890ff',
 }
 
-export function getLineDataByMonth(year: number, month: number) {
-  const days = new Date(year, month, 0).getDate()
-  const data: number[] = []
-  for (let d = 1; d <= days; d++) {
-    if (d === 1) data.push(16)
-    else if (d === 2) data.push(0)
-    else data.push(0)
+export type SafetyStatsPeriod = 'month' | 'quarter' | 'year'
+
+export interface SafetyStatsTimeFilter {
+  period: SafetyStatsPeriod
+  year: number
+  /** 1-12，period 为 month 时使用 */
+  month: number
+  /** 1-4，period 为 quarter 时使用 */
+  quarter: number
+}
+
+const CATEGORY_NAMES = [
+  '安全类型',
+  '消防设施',
+  '电气',
+  '指示标志',
+  '其他',
+  '特种设备',
+  '教育培训',
+  '场所环境',
+  '设备设施',
+  '生活环境',
+  '施工作业',
+  '危险源头',
+  '治安保卫',
+] as const
+
+const HAZARD_NAMES = [
+  '消防通道占用',
+  '灭火器过期',
+  '配电箱未上锁',
+  '应急灯损坏',
+  '安全出口堵塞',
+  '电线私拉乱接',
+  '监控盲区',
+  '防汛物资缺失',
+]
+
+function statsSeed(filter: SafetyStatsTimeFilter): number {
+  const { period, year, month, quarter } = filter
+  if (period === 'month') return year * 10000 + month * 100
+  if (period === 'quarter') return year * 10000 + quarter * 1000
+  return year * 10000
+}
+
+function seededInt(seed: number, index: number, min: number, max: number): number {
+  const n = Math.abs((seed * 9301 + index * 49297) % 233280) / 233280
+  return Math.round(min + n * (max - min))
+}
+
+/** 按时间维度折线图：横轴与数据随 period 变化 */
+export function getSafetyLineChart(filter: SafetyStatsTimeFilter) {
+  const seed = statsSeed(filter)
+  if (filter.period === 'month') {
+    const days = new Date(filter.year, filter.month, 0).getDate()
+    const xLabels = Array.from({ length: days }, (_, i) => `${i + 1}日`)
+    const data = Array.from({ length: days }, (_, i) => seededInt(seed, i + 1, 0, 18))
+    return { xLabels, data, xAxisName: '日期' as const }
   }
-  return { days, data }
+  if (filter.period === 'quarter') {
+    const startMonth = (filter.quarter - 1) * 3 + 1
+    const xLabels = [0, 1, 2].map((i) => `${startMonth + i}月`)
+    const data = [0, 1, 2].map((i) => seededInt(seed, i + 10, 5, 120))
+    return { xLabels, data, xAxisName: '月份' as const }
+  }
+  const xLabels = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
+  const data = Array.from({ length: 12 }, (_, i) => seededInt(seed, i + 20, 3, 95))
+  return { xLabels, data, xAxisName: '月份' as const }
+}
+
+export function getCategoryPieByTime(filter: SafetyStatsTimeFilter) {
+  const seed = statsSeed(filter)
+  return CATEGORY_NAMES.map((name, i) => ({
+    name,
+    value: seededInt(seed, i + 30, 1, 12),
+  }))
+}
+
+export function getRectificationPieByTime(filter: SafetyStatsTimeFilter) {
+  const seed = statsSeed(filter)
+  return [
+    { name: '未处理', value: seededInt(seed, 50, 5, 25) },
+    { name: '处理中', value: seededInt(seed, 51, 3, 18) },
+    { name: '处理完成', value: seededInt(seed, 52, 10, 40) },
+  ]
+}
+
+export function getSafetyLevelPieByTime(filter: SafetyStatsTimeFilter) {
+  const seed = statsSeed(filter)
+  return safetyLevelOptions.map((name, i) => ({
+    name,
+    value: seededInt(seed, i + 60, 8, 55),
+  }))
+}
+
+export function getHazardTop5ByTime(filter: SafetyStatsTimeFilter) {
+  const seed = statsSeed(filter)
+  return HAZARD_NAMES.map((name, i) => ({
+    key: String(i),
+    name,
+    count: seededInt(seed, i + 70, 1, 28),
+  }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+}
+
+/** @deprecated 使用 getSafetyLineChart */
+export function getLineDataByMonth(year: number, month: number) {
+  const { xLabels, data } = getSafetyLineChart({
+    period: 'month',
+    year,
+    month,
+    quarter: Math.ceil(month / 3),
+  })
+  return { days: xLabels.length, data }
 }
 
 export const alarmListRows = [

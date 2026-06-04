@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { Row, Col, Card, Radio, DatePicker, Button, Table, Space, Select } from 'antd'
 import ReactECharts from 'echarts-for-react'
 import dayjs, { Dayjs } from 'dayjs'
 import {
-  categoryPieData,
-  rectificationPieData,
-  safetyLevelPieData,
   SAFETY_LEVEL_COLORS,
-  getLineDataByMonth,
+  getSafetyLineChart,
+  getCategoryPieByTime,
+  getRectificationPieByTime,
+  getSafetyLevelPieByTime,
+  getHazardTop5ByTime,
+  type SafetyStatsTimeFilter,
 } from '../mock/data'
 
 const QUARTER_OPTIONS = [
@@ -17,35 +19,49 @@ const QUARTER_OPTIONS = [
   { value: 4, label: '第四季度' },
 ]
 
+function buildTimeFilter(
+  period: SafetyStatsTimeFilter['period'],
+  date: Dayjs,
+  quarter: number,
+): SafetyStatsTimeFilter {
+  const year = period === 'year' ? date.year() : date.year()
+  return {
+    period,
+    year,
+    month: period === 'month' ? date.month() + 1 : date.month() + 1,
+    quarter,
+  }
+}
+
 export default function SafetyStatistics() {
-  const currentYear = dayjs().year()
-  const [scope, setScope] = useState<'lease' | 'property'>('lease')
-  const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('quarter')
+  const [period, setPeriod] = useState<SafetyStatsTimeFilter['period']>('quarter')
   const [date, setDate] = useState<Dayjs>(dayjs('2023-06'))
   const [quarter, setQuarter] = useState(2)
+  const [timeFilter, setTimeFilter] = useState<SafetyStatsTimeFilter>(() =>
+    buildTimeFilter('quarter', dayjs('2023-06'), 2),
+  )
+
+  const applyFilter = useCallback(() => {
+    setTimeFilter(buildTimeFilter(period, date, quarter))
+  }, [period, date, quarter])
+
+  const lineSource = useMemo(() => getSafetyLineChart(timeFilter), [timeFilter])
 
   const lineChart = useMemo(() => {
-    const y = period === 'year' ? date.year() : currentYear
-    const m =
-      period === 'month'
-        ? date.month() + 1
-        : period === 'quarter'
-          ? quarter * 3
-          : 6
-    const { days, data } = getLineDataByMonth(y, m)
-    const xLabels = Array.from({ length: days }, (_, i) => `${i + 1}日`)
+    const maxVal = Math.max(...lineSource.data, 1)
     return {
       tooltip: { trigger: 'axis' },
       legend: { data: ['工单'], bottom: 0 },
       grid: { left: 48, right: 24, top: 32, bottom: 48 },
-      xAxis: { type: 'category', data: xLabels, name: '日期' },
-      yAxis: { type: 'value', name: '工单数量', max: 18 },
-      series: [{ name: '工单', type: 'line', data, smooth: true, itemStyle: { color: '#1890ff' } }],
+      xAxis: { type: 'category', data: lineSource.xLabels, name: lineSource.xAxisName },
+      yAxis: { type: 'value', name: '工单数量', max: Math.ceil(maxVal * 1.2) },
+      series: [{ name: '工单', type: 'line', data: lineSource.data, smooth: true, itemStyle: { color: '#1890ff' } }],
     }
-  }, [date, period, quarter, currentYear])
+  }, [lineSource])
 
-  const categoryPie = useMemo(
-    () => ({
+  const categoryPie = useMemo(() => {
+    const pieData = getCategoryPieByTime(timeFilter)
+    return {
       tooltip: { trigger: 'item' },
       legend: { orient: 'vertical', left: 'left', top: 'middle', textStyle: { fontSize: 11 } },
       series: [
@@ -53,28 +69,23 @@ export default function SafetyStatistics() {
           type: 'pie',
           radius: ['35%', '65%'],
           center: ['60%', '50%'],
-          data: categoryPieData,
+          data: pieData,
         },
       ],
-    }),
-    [],
-  )
+    }
+  }, [timeFilter])
 
-  const rectPie = useMemo(
-    () => ({
+  const rectPie = useMemo(() => {
+    const pieData = getRectificationPieByTime(timeFilter)
+    return {
       tooltip: { trigger: 'item' },
       color: ['#faad14', '#52c41a', '#1890ff'],
       legend: { bottom: 0 },
-      series: [
-        {
-          type: 'pie',
-          radius: '60%',
-          data: rectificationPieData,
-        },
-      ],
-    }),
-    [],
-  )
+      series: [{ type: 'pie', radius: '60%', data: pieData }],
+    }
+  }, [timeFilter])
+
+  const safetyLevelData = useMemo(() => getSafetyLevelPieByTime(timeFilter), [timeFilter])
 
   const safetyLevelPie = useMemo(
     () => ({
@@ -89,7 +100,7 @@ export default function SafetyStatistics() {
           radius: ['40%', '68%'],
           center: ['58%', '50%'],
           label: { formatter: '{b}\n{c}项' },
-          data: safetyLevelPieData.map((d) => ({
+          data: safetyLevelData.map((d) => ({
             name: d.name,
             value: d.value,
             itemStyle: { color: SAFETY_LEVEL_COLORS[d.name] },
@@ -97,25 +108,34 @@ export default function SafetyStatistics() {
         },
       ],
     }),
-    [],
+    [safetyLevelData],
   )
 
-  const safetyLevelTable = useMemo(
-    () =>
-      safetyLevelPieData.map((d) => ({
-        key: d.name,
-        level: d.name,
-        count: d.value,
-        percent: `${((d.value / safetyLevelPieData.reduce((s, x) => s + x.value, 0)) * 100).toFixed(1)}%`,
-      })),
-    [],
-  )
+  const safetyLevelTable = useMemo(() => {
+    const total = safetyLevelData.reduce((s, x) => s + x.value, 0)
+    return safetyLevelData.map((d) => ({
+      key: d.name,
+      level: d.name,
+      count: d.value,
+      percent: total ? `${((d.value / total) * 100).toFixed(1)}%` : '0%',
+    }))
+  }, [safetyLevelData])
+
+  const hazardTop5 = useMemo(() => getHazardTop5ByTime(timeFilter), [timeFilter])
+
+  const handlePeriodChange = (next: SafetyStatsTimeFilter['period']) => {
+    setPeriod(next)
+    setTimeFilter(buildTimeFilter(next, date, quarter))
+  }
 
   const timeControl =
     period === 'quarter' ? (
       <Select
         value={quarter}
-        onChange={setQuarter}
+        onChange={(q) => {
+          setQuarter(q)
+          setTimeFilter(buildTimeFilter(period, date, q))
+        }}
         style={{ width: 140 }}
         options={QUARTER_OPTIONS}
       />
@@ -123,7 +143,11 @@ export default function SafetyStatistics() {
       <DatePicker
         picker={period === 'month' ? 'month' : 'year'}
         value={date}
-        onChange={(d) => d && setDate(d)}
+        onChange={(d) => {
+          if (!d) return
+          setDate(d)
+          setTimeFilter(buildTimeFilter(period, d, quarter))
+        }}
         allowClear={false}
       />
     )
@@ -131,41 +155,38 @@ export default function SafetyStatistics() {
   return (
     <div style={{ padding: 16 }}>
       <Space wrap size="middle" style={{ marginBottom: 16 }}>
-        <span>筛选条件：</span>
-        <Radio.Group value={scope} onChange={(e) => setScope(e.target.value)}>
-          <Radio.Button value="lease">租赁</Radio.Button>
-          <Radio.Button value="property">物业</Radio.Button>
-        </Radio.Group>
-        <span style={{ marginLeft: 16 }}>时间选择：</span>
-        <Radio.Group value={period} onChange={(e) => setPeriod(e.target.value)}>
+        <span>时间选择：</span>
+        <Radio.Group value={period} onChange={(e) => handlePeriodChange(e.target.value)}>
           <Radio.Button value="month">月</Radio.Button>
           <Radio.Button value="quarter">季</Radio.Button>
           <Radio.Button value="year">年</Radio.Button>
         </Radio.Group>
         {timeControl}
-        <Button type="primary">查询</Button>
+        <Button type="primary" onClick={applyFilter}>
+          查询
+        </Button>
       </Space>
       <Row gutter={[16, 16]}>
         <Col span={12}>
           <Card title="按安全类别统计" size="small">
-            <ReactECharts option={categoryPie} style={{ height: 320 }} />
+            <ReactECharts option={categoryPie} style={{ height: 320 }} notMerge />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="按时间维度统计安全情况" size="small">
-            <ReactECharts option={lineChart} style={{ height: 320 }} />
+            <ReactECharts option={lineChart} style={{ height: 320 }} notMerge />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="按整改工单统计" size="small">
-            <ReactECharts option={rectPie} style={{ height: 320 }} />
+            <ReactECharts option={rectPie} style={{ height: 320 }} notMerge />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="按安全等级统计" size="small">
             <Row gutter={16}>
               <Col span={14}>
-                <ReactECharts option={safetyLevelPie} style={{ height: 320 }} />
+                <ReactECharts option={safetyLevelPie} style={{ height: 320 }} notMerge />
               </Col>
               <Col span={10}>
                 <Table
@@ -194,7 +215,7 @@ export default function SafetyStatistics() {
                 { title: '隐患名称', dataIndex: 'name' },
                 { title: '问题出现次数', dataIndex: 'count', width: 120 },
               ]}
-              dataSource={[]}
+              dataSource={hazardTop5}
             />
           </Card>
         </Col>

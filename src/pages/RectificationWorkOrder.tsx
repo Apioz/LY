@@ -1,5 +1,6 @@
 import { Table, Select, Space } from 'antd'
 import SearchBar from '../components/SearchBar'
+import { safetyLevelOptions } from '../mock/data'
 
 const columns = [
   { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
@@ -10,7 +11,7 @@ const columns = [
   { title: '安全类别', dataIndex: 'safetyCategory', width: 100 },
   { title: '检查日期', dataIndex: 'inspectDate', width: 110 },
   { title: '管理类别', dataIndex: 'category', width: 90 },
-  { title: '十大低老坏', dataIndex: 'tenLow', width: 110 },
+  { title: '安全等级', dataIndex: 'safetyLevel', width: 90 },
   { title: '问题描述', dataIndex: 'desc', width: 120 },
   { title: '整改说明', dataIndex: 'rectDesc', width: 120 },
   { title: '工单状态', dataIndex: 'status', width: 90 },
@@ -28,6 +29,13 @@ export default function RectificationWorkOrder() {
         <Space wrap>
           <span>安全类别：</span>
           <Select placeholder="请选择安全类别" style={{ width: 160 }} allowClear />
+          <span>安全等级：</span>
+          <Select
+            placeholder="请选择安全等级"
+            style={{ width: 160 }}
+            allowClear
+            options={safetyLevelOptions.map((v) => ({ value: v, label: v }))}
+          />
           <span>管理类别：</span>
           <Select placeholder="请选择管理类别" style={{ width: 160 }} allowClear />
           <span>工单状态：</span>

@@ -5,6 +5,7 @@ import {
   Modal,
   Form,
   Select,
+  Cascader,
   message,
   Button,
   Descriptions,
@@ -16,7 +17,14 @@ import {
 import SearchBar from '../../components/SearchBar'
 import TableToolbar from '../../components/TableToolbar'
 import { alarmRulesData, type AlarmRuleItem } from '../../mock/alarmData'
-import { ALARM_LEVELS, ALARM_DEVICES, DEFAULT_TIMEOUT_MINUTES } from './constants'
+import {
+  ALARM_LEVELS,
+  ALARM_DEVICE_CASCADER_OPTIONS,
+  DEFAULT_TIMEOUT_MINUTES,
+  devicesToCascaderPaths,
+  cascaderPathsToDevices,
+  findDeviceCategory,
+} from './constants'
 import { formatThresholdDisplay, type ThresholdMode } from '../../store/alarmSync'
 
 const { Text } = Typography
@@ -32,6 +40,7 @@ export default function AlarmSettings() {
   const [deviceFilter, setDeviceFilter] = useState<string>()
   const [modal, setModal] = useState<'add' | 'view' | 'edit' | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [viewRecord, setViewRecord] = useState<AlarmRuleItem | null>(null)
   const [form] = Form.useForm()
   const thresholdMode = Form.useWatch('thresholdMode', form) as ThresholdMode | undefined
 
@@ -45,12 +54,13 @@ export default function AlarmSettings() {
         thresholdMode: 'deviceTimeout',
         customMinutes: DEFAULT_TIMEOUT_MINUTES,
         level: '三级告警',
-        alarmDevices: [],
+        alarmDevicePaths: [],
       })
       setEditingKey(null)
+      setViewRecord(null)
     } else if (record) {
       form.setFieldsValue({
-        alarmDevices: record.alarmDevices,
+        alarmDevicePaths: devicesToCascaderPaths(record.alarmDevices),
         level: record.level,
         thresholdMode: record.thresholdMode,
         customMinutes: record.customMinutes ?? DEFAULT_TIMEOUT_MINUTES,
@@ -58,16 +68,18 @@ export default function AlarmSettings() {
         thresholdDisplay: record.thresholdDisplay,
       })
       setEditingKey(record.key)
+      setViewRecord(type === 'view' ? record : null)
     }
   }
 
   const handleSave = () => {
     form.validateFields().then((values) => {
+      const alarmDevices = cascaderPathsToDevices(values.alarmDevicePaths ?? [])
       const thresholdDisplay = formatThresholdDisplay(values.thresholdMode, values.customMinutes)
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
       const row: AlarmRuleItem = {
         key: editingKey || String(Date.now()),
-        alarmDevices: values.alarmDevices,
+        alarmDevices,
         level: values.level,
         thresholdMode: values.thresholdMode,
         thresholdDisplay,
@@ -163,13 +175,14 @@ export default function AlarmSettings() {
         resetLabel="重置"
       >
         <span>告警设备：</span>
-        <Select
-          placeholder="请选择告警设备"
-          style={{ width: 220 }}
+        <Cascader
+          placeholder="请选择设备类别 / 设备名称"
+          style={{ width: 280 }}
           allowClear
-          value={deviceFilter}
-          onChange={setDeviceFilter}
-          options={ALARM_DEVICES.map((v) => ({ value: v, label: v }))}
+          options={ALARM_DEVICE_CASCADER_OPTIONS}
+          value={deviceFilter ? devicesToCascaderPaths([deviceFilter])[0] : undefined}
+          onChange={(paths) => setDeviceFilter(paths?.length ? String(paths[paths.length - 1]) : undefined)}
+          displayRender={(labels) => labels.join(' / ')}
         />
       </SearchBar>
       <TableToolbar selectedCount={selected.length} onAdd={() => openModal('add')} onClearSelection={() => setSelected([])} />
@@ -202,28 +215,35 @@ export default function AlarmSettings() {
           )
         }
       >
-        {modal === 'view' ? (
+        {modal === 'view' && viewRecord ? (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="告警设备">
-              {(form.getFieldValue('alarmDevices') as string[])?.join('、')}
+              {viewRecord.alarmDevices
+                .map((name) => {
+                  const cat = findDeviceCategory(name)
+                  return cat ? `${cat} / ${name}` : name
+                })
+                .join('；')}
             </Descriptions.Item>
-            <Descriptions.Item label="告警等级">{form.getFieldValue('level')}</Descriptions.Item>
-            <Descriptions.Item label="阈值">{form.getFieldValue('thresholdDisplay')}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">{form.getFieldValue('createTime')}</Descriptions.Item>
+            <Descriptions.Item label="告警等级">{viewRecord.level}</Descriptions.Item>
+            <Descriptions.Item label="阈值">{viewRecord.thresholdDisplay}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{viewRecord.createTime}</Descriptions.Item>
           </Descriptions>
         ) : (
           <Form form={form} layout="vertical">
             <Form.Item
-              name="alarmDevices"
+              name="alarmDevicePaths"
               label="告警设备"
               rules={[{ required: true, message: '请选择告警设备' }]}
-              extra={<Text type="secondary">注：选择系统内已存在的所有设备，可多选</Text>}
+              extra={<Text type="secondary">注：先选设备类别，再选该类别下的设备名称，可多选</Text>}
             >
-              <Select
-                mode="multiple"
-                placeholder="请选择告警设备"
-                options={ALARM_DEVICES.map((v) => ({ value: v, label: v }))}
+              <Cascader
+                multiple
                 maxTagCount="responsive"
+                placeholder="请选择设备类别 / 设备名称"
+                options={ALARM_DEVICE_CASCADER_OPTIONS}
+                displayRender={(labels) => labels.join(' / ')}
+                showCheckedStrategy={Cascader.SHOW_CHILD}
               />
             </Form.Item>
             <Form.Item name="level" label="告警等级" rules={[{ required: true, message: '请选择告警等级' }]}>
