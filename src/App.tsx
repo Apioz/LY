@@ -13,7 +13,7 @@ import InspectionReport from './pages/InspectionReport'
 import InspectionContentConfig from './pages/InspectionContentConfig'
 import SystemDictionary from './pages/SystemDictionary'
 import FacilityWorkOrder from './pages/FacilityWorkOrder'
-import { AlarmStatistics, AlarmList, AlarmSettings, AlarmSettings2 } from './pages/AlarmPages'
+import { AlarmStatistics, AlarmList, AlarmSettings } from './pages/AlarmPages'
 import { InspectionCalendar } from './pages/PlaceholderPages'
 import FireDeviceManagement from './pages/device/FireDeviceManagement'
 import FireEventAlarm from './pages/device/FireEventAlarm'
@@ -35,6 +35,7 @@ import {
   GasEquipmentPage,
   ChargingPilePage,
 } from './pages/hse/HsePages'
+import MiniProgramApp from './miniapp/MiniProgramApp'
 
 const pageMap: Record<MenuKey, ReactNode> = {
   home: <HomePage />,
@@ -65,7 +66,6 @@ const pageMap: Record<MenuKey, ReactNode> = {
   'alarm-stats': <AlarmStatistics />,
   'alarm-list': <AlarmList />,
   'alarm-settings': <AlarmSettings />,
-  'alarm-settings-2': <AlarmSettings2 />,
   'facility-work-order': <FacilityWorkOrder />,
   'fire-device-mgmt': <FireDeviceManagement />,
   'fire-event-alarm': <FireEventAlarm />,
@@ -75,11 +75,23 @@ const pageMap: Record<MenuKey, ReactNode> = {
   'system-dictionary': <SystemDictionary />,
 }
 
+export type AppMode = 'admin' | 'mini'
+
 export default function App() {
+  const [appMode, setAppMode] = useState<AppMode>('admin')
   const [activeKey, setActiveKey] = useState<MenuKey>('safety-stats')
 
+  if (appMode === 'mini') {
+    return <MiniProgramApp onSwitchToAdmin={() => setAppMode('admin')} />
+  }
+
   return (
-    <MainLayout activeKey={activeKey} onNavigate={setActiveKey}>
+    <MainLayout
+      activeKey={activeKey}
+      onNavigate={setActiveKey}
+      appMode={appMode}
+      onSwitchMode={setAppMode}
+    >
       {pageMap[activeKey]}
     </MainLayout>
   )

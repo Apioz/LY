@@ -18,6 +18,9 @@ import {
   ThunderboltOutlined,
   FolderOpenOutlined,
   DatabaseOutlined,
+  MobileOutlined,
+  DesktopOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { menuItems, pageTitles, type MenuKey } from '../menu'
@@ -65,9 +68,11 @@ interface MainLayoutProps {
   activeKey: MenuKey
   onNavigate: (key: MenuKey) => void
   children: React.ReactNode
+  appMode?: 'admin' | 'mini'
+  onSwitchMode?: (mode: 'admin' | 'mini') => void
 }
 
-export default function MainLayout({ activeKey, onNavigate, children }: MainLayoutProps) {
+export default function MainLayout({ activeKey, onNavigate, children, onSwitchMode }: MainLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [openTabs, setOpenTabs] = useState<{ key: MenuKey; label: string }[]>([
     { key: 'home', label: '首页' },
@@ -111,7 +116,7 @@ export default function MainLayout({ activeKey, onNavigate, children }: MainLayo
     ) {
       keys.push('group-archive', 'group-project-archive')
     }
-    if (['alarm-stats', 'alarm-list', 'alarm-settings', 'alarm-settings-2'].includes(activeKey))
+    if (['alarm-stats', 'alarm-list', 'alarm-settings'].includes(activeKey))
       keys.push('group-alarm')
     if (['fire-device-mgmt', 'fire-event-alarm'].includes(activeKey)) {
       keys.push('group-device-mgmt', 'group-fire-device')
@@ -154,7 +159,7 @@ export default function MainLayout({ activeKey, onNavigate, children }: MainLayo
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          {collapsed ? '中台' : '中台管理系统'}
+          {collapsed ? '溧阳' : '溧阳消防局中台'}
         </div>
         <Menu
           mode="inline"
@@ -182,8 +187,32 @@ export default function MainLayout({ activeKey, onNavigate, children }: MainLayo
             onClick={() => setCollapsed(!collapsed)}
           />
           <Space>
+            {onSwitchMode && (
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'admin',
+                      label: '中台管理系统',
+                      icon: <DesktopOutlined />,
+                    },
+                    {
+                      key: 'mini',
+                      label: '小程序',
+                      icon: <MobileOutlined />,
+                      onClick: () => onSwitchMode('mini'),
+                    },
+                  ],
+                  selectedKeys: ['admin'],
+                }}
+              >
+                <Button type="link" style={{ padding: '0 8px' }}>
+                  中台管理系统 <DownOutlined />
+                </Button>
+              </Dropdown>
+            )}
             <Avatar size="small" icon={<UserOutlined />} />
-            <span>匿名</span>
+            <span>管理员</span>
           </Space>
         </Header>
         <div style={{ background: '#f5f5f5', padding: '8px 12px 0' }}>
@@ -226,7 +255,7 @@ export function HomePage() {
   return (
     <div style={{ padding: 48, textAlign: 'center', color: '#999' }}>
       <HomeOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-      <div>欢迎使用中台管理系统</div>
+      <div>欢迎使用溧阳消防局中台管理系统</div>
     </div>
   )
 }

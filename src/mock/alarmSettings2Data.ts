@@ -2,7 +2,7 @@ import type { AlarmLevel } from '../pages/alarm/constants'
 import { DEFAULT_TIMEOUT_MINUTES } from '../pages/alarm/constants'
 import { formatThresholdDisplay, type ThresholdMode } from '../store/alarmSync'
 
-/** 三级设备目录：一级类别 → 二级子类 → 三级设备名称 */
+/** 设备目录：一级类别 → 二级子类 → 三级设备名称（三级仅用于统计子级数量） */
 export const ALARM_SETTINGS2_DEVICE_CATALOG: Record<string, Record<string, readonly string[]>> = {
   消防设备: {
     消火栓: ['消火栓1', '消火栓2', '消火栓3', '消火栓4', '消火栓5', '消火栓6'],
@@ -31,7 +31,6 @@ export interface AlarmDeviceRule2 {
   key: string
   rootCategory: string
   subCategory: string
-  deviceName: string
   level: AlarmLevel | string
   thresholdMode: ThresholdMode
   customMinutes?: number
@@ -39,15 +38,15 @@ export interface AlarmDeviceRule2 {
   createTime: string
 }
 
-export type AlarmSettings2RowType = 'root' | 'category' | 'device'
+export type AlarmSettings2RowType = 'root' | 'category'
 
 export interface AlarmSettings2TreeRow {
   key: string
   name: string
   rowType: AlarmSettings2RowType
-  configured?: boolean
   rootCategory?: string
   subCategory?: string
+  childCount?: number
   thresholdDisplay?: string
   level?: string
   createTime?: string
@@ -56,37 +55,38 @@ export interface AlarmSettings2TreeRow {
 
 const LEVELS: AlarmLevel[] = ['一级告警', '二级告警', '三级告警', '四级告警']
 
+/** 二级子类下三级设备总数 */
+export function getSubCategoryDeviceCount(rootCategory: string, subCategory: string) {
+  return ALARM_SETTINGS2_DEVICE_CATALOG[rootCategory]?.[subCategory]?.length ?? 0
+}
+
 function buildInitialRules(): AlarmDeviceRule2[] {
   const rules: AlarmDeviceRule2[] = []
   let seq = 0
   const baseDate = new Date('2026-01-15T08:00:00')
 
   Object.entries(ALARM_SETTINGS2_DEVICE_CATALOG).forEach(([rootCategory, subs], rootIdx) => {
-    Object.entries(subs).forEach(([subCategory, devices], subIdx) => {
-      devices.forEach((deviceName, deviceIdx) => {
-        // 约 55% 已设置，45% 未设置
-        const shouldConfigure = (rootIdx + subIdx + deviceIdx) % 5 !== 0 && (rootIdx + subIdx + deviceIdx) % 3 !== 2
-        if (!shouldConfigure) return
+    Object.entries(subs).forEach(([subCategory], subIdx) => {
+      const shouldConfigure = (rootIdx + subIdx) % 5 !== 0 && (rootIdx + subIdx) % 3 !== 2
+      if (!shouldConfigure) return
 
-        seq += 1
-        const thresholdMode: ThresholdMode = seq % 7 === 0 ? 'none' : 'deviceTimeout'
-        const customMinutes = thresholdMode === 'deviceTimeout' ? (seq % 4 === 0 ? 15 : 30) : undefined
-        const dayOffset = seq % 28
-        const createDate = new Date(baseDate)
-        createDate.setDate(createDate.getDate() - dayOffset)
-        const createTime = createDate.toISOString().slice(0, 19).replace('T', ' ')
+      seq += 1
+      const thresholdMode: ThresholdMode = seq % 7 === 0 ? 'none' : 'deviceTimeout'
+      const customMinutes = thresholdMode === 'deviceTimeout' ? (seq % 4 === 0 ? 15 : 30) : undefined
+      const dayOffset = seq % 28
+      const createDate = new Date(baseDate)
+      createDate.setDate(createDate.getDate() - dayOffset)
+      const createTime = createDate.toISOString().slice(0, 19).replace('T', ' ')
 
-        rules.push({
-          key: `d-init-${seq}`,
-          rootCategory,
-          subCategory,
-          deviceName,
-          level: LEVELS[seq % LEVELS.length],
-          thresholdMode,
-          customMinutes,
-          thresholdDisplay: formatThresholdDisplay(thresholdMode, customMinutes),
-          createTime,
-        })
+      rules.push({
+        key: `cat-init-${seq}`,
+        rootCategory,
+        subCategory,
+        level: LEVELS[seq % LEVELS.length],
+        thresholdMode,
+        customMinutes,
+        thresholdDisplay: formatThresholdDisplay(thresholdMode, customMinutes),
+        createTime,
       })
     })
   })
@@ -103,34 +103,30 @@ export function countCatalogDevices() {
   )
 }
 
+/** 二级级联：一级类别 → 二级子类 */
 export function buildDeviceCatalogCascaderOptions() {
   return Object.entries(ALARM_SETTINGS2_DEVICE_CATALOG).map(([root, subs]) => ({
     value: root,
     label: root,
-    children: Object.entries(subs).map(([sub, devices]) => ({
-      value: sub,
-      label: sub,
-      children: devices.map((name) => ({ value: name, label: name })),
-    })),
+    children: Object.keys(subs).map((sub) => ({ value: sub, label: sub })),
   }))
 }
 
-export function devicePathKey(root: string, sub: string, device: string) {
-  return `${root}/${sub}/${device}`
+export function subCategoryPathKey(root: string, sub: string) {
+  return `${root}/${sub}`
 }
 
-export function pathsToDeviceSelections(paths: string[][]) {
+export function pathsToSubCategorySelections(paths: string[][]) {
   return paths
-    .filter((p) => p.length === 3)
+    .filter((p) => p.length === 2)
     .map((p) => ({
       rootCategory: p[0],
       subCategory: p[1],
-      deviceName: p[2],
     }))
 }
 
-export function ruleToDevicePath(rule: AlarmDeviceRule2): string[] {
-  return [rule.rootCategory, rule.subCategory, rule.deviceName]
+export function ruleToSubCategoryPath(rule: AlarmDeviceRule2): string[] {
+  return [rule.rootCategory, rule.subCategory]
 }
 
 export interface AlarmSettings2DisplayFilter {
@@ -140,10 +136,9 @@ export interface AlarmSettings2DisplayFilter {
   dateEnd?: number
 }
 
-function deviceMatchesFilter(
+function subCategoryMatchesFilter(
   rootCategory: string,
   subCategory: string,
-  deviceName: string,
   rule: AlarmDeviceRule2 | undefined,
   filter?: AlarmSettings2DisplayFilter,
 ) {
@@ -151,9 +146,7 @@ function deviceMatchesFilter(
   const kw = filter.keyword?.trim().toLowerCase()
   if (kw) {
     const hit =
-      deviceName.toLowerCase().includes(kw) ||
-      subCategory.toLowerCase().includes(kw) ||
-      rootCategory.toLowerCase().includes(kw)
+      subCategory.toLowerCase().includes(kw) || rootCategory.toLowerCase().includes(kw)
     if (!hit) return false
   }
   if (filter.level) {
@@ -172,41 +165,29 @@ export function buildAlarmSettings2Tree(
   displayFilter?: AlarmSettings2DisplayFilter,
 ): AlarmSettings2TreeRow[] {
   const ruleMap = new Map<string, AlarmDeviceRule2>()
-  rules.forEach((r) => ruleMap.set(devicePathKey(r.rootCategory, r.subCategory, r.deviceName), r))
+  rules.forEach((r) => ruleMap.set(subCategoryPathKey(r.rootCategory, r.subCategory), r))
 
   const roots: AlarmSettings2TreeRow[] = []
 
   Object.entries(ALARM_SETTINGS2_DEVICE_CATALOG).forEach(([rootCategory, subs]) => {
     const subChildren: AlarmSettings2TreeRow[] = []
 
-    Object.entries(subs).forEach(([subCategory, catalogDevices]) => {
-      const deviceRows: AlarmSettings2TreeRow[] = []
+    Object.entries(subs).forEach(([subCategory]) => {
+      const rule = ruleMap.get(subCategoryPathKey(rootCategory, subCategory))
+      if (!rule) return
+      if (!subCategoryMatchesFilter(rootCategory, subCategory, rule, displayFilter)) return
 
-      catalogDevices.forEach((deviceName) => {
-        const rule = ruleMap.get(devicePathKey(rootCategory, subCategory, deviceName))
-        if (!rule) return
-        if (!deviceMatchesFilter(rootCategory, subCategory, deviceName, rule, displayFilter)) return
-
-        deviceRows.push({
-          key: rule.key,
-          name: deviceName,
-          rowType: 'device',
-          rootCategory,
-          subCategory,
-          thresholdDisplay: rule.thresholdDisplay,
-          level: rule.level,
-          createTime: rule.createTime,
-        })
+      subChildren.push({
+        key: rule.key,
+        name: subCategory,
+        rowType: 'category',
+        rootCategory,
+        subCategory,
+        childCount: getSubCategoryDeviceCount(rootCategory, subCategory),
+        thresholdDisplay: rule.thresholdDisplay,
+        level: rule.level,
+        createTime: rule.createTime,
       })
-
-      if (deviceRows.length) {
-        subChildren.push({
-          key: `cat-${rootCategory}-${subCategory}`,
-          name: subCategory,
-          rowType: 'category',
-          children: deviceRows,
-        })
-      }
     })
 
     if (subChildren.length) {
@@ -226,25 +207,50 @@ export function findDeviceRule(rules: AlarmDeviceRule2[], key: string) {
   return rules.find((r) => r.key === key)
 }
 
-export function createDeviceRule(
+export function createSubCategoryRule(
   partial: Pick<
     AlarmDeviceRule2,
-    'rootCategory' | 'subCategory' | 'deviceName' | 'level' | 'thresholdMode' | 'customMinutes'
+    'rootCategory' | 'subCategory' | 'level' | 'thresholdMode' | 'customMinutes'
   >,
   keySuffix?: string,
 ): AlarmDeviceRule2 {
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
   return {
-    key: `d-${keySuffix ?? Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    key: `cat-${keySuffix ?? Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     rootCategory: partial.rootCategory,
     subCategory: partial.subCategory,
-    deviceName: partial.deviceName,
     level: partial.level,
     thresholdMode: partial.thresholdMode,
     customMinutes: partial.thresholdMode === 'deviceTimeout' ? partial.customMinutes : undefined,
     thresholdDisplay: formatThresholdDisplay(partial.thresholdMode, partial.customMinutes),
     createTime: now,
   }
+}
+
+/** @deprecated 使用 subCategoryPathKey */
+export function devicePathKey(root: string, sub: string, _device?: string) {
+  return subCategoryPathKey(root, sub)
+}
+
+/** @deprecated 使用 pathsToSubCategorySelections */
+export function pathsToDeviceSelections(paths: string[][]) {
+  return pathsToSubCategorySelections(paths).map((s) => ({ ...s, deviceName: '' }))
+}
+
+/** @deprecated 使用 ruleToSubCategoryPath */
+export function ruleToDevicePath(rule: AlarmDeviceRule2): string[] {
+  return ruleToSubCategoryPath(rule)
+}
+
+/** @deprecated 使用 createSubCategoryRule */
+export function createDeviceRule(
+  partial: Pick<
+    AlarmDeviceRule2,
+    'rootCategory' | 'subCategory' | 'level' | 'thresholdMode' | 'customMinutes'
+  > & { deviceName?: string },
+  keySuffix?: string,
+): AlarmDeviceRule2 {
+  return createSubCategoryRule(partial, keySuffix)
 }
 
 export { DEFAULT_TIMEOUT_MINUTES }

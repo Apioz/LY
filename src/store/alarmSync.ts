@@ -6,6 +6,12 @@ import type { AlarmDescType } from '../pages/alarm/constants'
 export const FACILITY_ORDER_STATUS = ['待处理', '处理中', '已处理', '损坏'] as const
 export type FacilityOrderStatus = (typeof FACILITY_ORDER_STATUS)[number]
 
+export interface FacilityFlowRecord {
+  time: string
+  action: string
+  operator: string
+}
+
 export interface FacilityOrderItem {
   id: string
   alarmDevices: string[]
@@ -18,6 +24,8 @@ export interface FacilityOrderItem {
   source: '告警同步' | '手动'
   /** 损坏工单备注，供维修人员填写 */
   damageNote?: string
+  initiator?: string
+  flowRecords?: FacilityFlowRecord[]
 }
 
 const initialFacility: FacilityOrderItem[] = [
@@ -31,6 +39,11 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '告警同步',
     alarmId: 'AL20260601003',
+    initiator: '系统',
+    flowRecords: [
+      { time: '2026-06-01 11:20:05', action: '告警同步生成设施工单', operator: '系统' },
+      { time: '2026-06-01 11:20:05', action: '工单状态：待处理', operator: '—' },
+    ],
   },
   {
     id: 'SG20260601002',
@@ -42,6 +55,12 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '王运维',
     source: '告警同步',
     alarmId: 'AL20260601002',
+    initiator: '系统',
+    flowRecords: [
+      { time: '2026-06-01 09:45:11', action: '告警同步生成设施工单', operator: '系统' },
+      { time: '2026-06-01 09:50:00', action: '维修人员接单', operator: '王运维' },
+      { time: '2026-06-01 09:50:00', action: '工单状态：处理中', operator: '王运维' },
+    ],
   },
   {
     id: 'SG20260528003',
@@ -52,6 +71,12 @@ const initialFacility: FacilityOrderItem[] = [
     status: '已处理',
     receiver: '李维修',
     source: '告警同步',
+    initiator: '系统',
+    flowRecords: [
+      { time: '2026-05-28 16:02:18', action: '告警同步生成设施工单', operator: '系统' },
+      { time: '2026-05-28 16:30:00', action: '维修人员接单', operator: '李维修' },
+      { time: '2026-05-29 10:00:00', action: '工单状态：已处理', operator: '李维修' },
+    ],
   },
   {
     id: 'SG20260520004',
@@ -63,6 +88,12 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '张工',
     source: '手动',
     damageNote: '喷淋泵电机烧毁，需更换配件后复测',
+    initiator: '管理员000000',
+    flowRecords: [
+      { time: '2026-05-20 08:30:00', action: '手动创建设施工单', operator: '管理员000000' },
+      { time: '2026-05-20 09:00:00', action: '维修人员接单', operator: '张工' },
+      { time: '2026-05-21 14:00:00', action: '工单状态：损坏', operator: '张工' },
+    ],
   },
 ]
 
@@ -97,6 +128,11 @@ export function syncAlarmToFacility(alarm: AlarmListItem) {
       receiver: '-',
       alarmId: alarm.id,
       source: '告警同步',
+      initiator: '系统',
+      flowRecords: [
+        { time: alarm.time, action: '告警同步生成设施工单', operator: '系统' },
+        { time: alarm.time, action: '工单状态：待处理', operator: '—' },
+      ],
     },
     ...facilityOrders,
   ]
@@ -117,14 +153,21 @@ export function closeFacilityOrder(orderId: string) {
   notifyFacility()
 }
 
-/** 损坏状态工单可由维修人员再次接单 */
-export function acceptDamagedFacilityOrder(orderId: string, receiver: string) {
-  facilityOrders = facilityOrders.map((o) =>
-    o.id === orderId && o.status === '损坏'
-      ? { ...o, status: '处理中', receiver }
-      : o,
-  )
+/** 小程序/维修端接单：待处理或损坏 → 处理中 */
+export function acceptFacilityOrder(orderId: string, receiver: string) {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  facilityOrders = facilityOrders.map((o) => {
+    if (o.id !== orderId) return o
+    if (o.status !== '待处理' && o.status !== '损坏') return o
+    const flow = [...(o.flowRecords ?? []), { time: now, action: '维修人员接单', operator: receiver }, { time: now, action: '工单状态：处理中', operator: receiver }]
+    return { ...o, status: '处理中', receiver, flowRecords: flow }
+  })
   notifyFacility()
+}
+
+/** @deprecated 使用 acceptFacilityOrder */
+export function acceptDamagedFacilityOrder(orderId: string, receiver: string) {
+  acceptFacilityOrder(orderId, receiver)
 }
 
 export function updateFacilityDamageNote(orderId: string, damageNote: string) {

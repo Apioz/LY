@@ -26,11 +26,11 @@ import {
   initialAlarmDeviceRules2,
   buildAlarmSettings2Tree,
   buildDeviceCatalogCascaderOptions,
-  createDeviceRule,
+  createSubCategoryRule,
   findDeviceRule,
-  devicePathKey,
-  pathsToDeviceSelections,
-  ruleToDevicePath,
+  subCategoryPathKey,
+  pathsToSubCategorySelections,
+  ruleToSubCategoryPath,
   DEFAULT_TIMEOUT_MINUTES,
   type AlarmDeviceRule2,
   type AlarmSettings2TreeRow,
@@ -39,6 +39,7 @@ import {
 const { Text } = Typography
 
 const COL_WIDTH = 160
+const COLUMN_COUNT = 6
 const NONE_THRESHOLD_TIP = '仅启用第三方推送的告警信息，不做额外阈值设置。'
 const DEVICE_TIMEOUT_TIP =
   '本系统对设备状态做监控，设备超过设定离线判定时长未响应将被判定为离线并触发设备超时报警。'
@@ -55,9 +56,7 @@ function filterRules(
     if (deviceKeyword?.trim()) {
       const kw = deviceKeyword.trim().toLowerCase()
       const hit =
-        r.deviceName.toLowerCase().includes(kw) ||
-        r.subCategory.toLowerCase().includes(kw) ||
-        r.rootCategory.toLowerCase().includes(kw)
+        r.subCategory.toLowerCase().includes(kw) || r.rootCategory.toLowerCase().includes(kw)
       if (!hit) return false
     }
     if (level && r.level !== level) return false
@@ -71,12 +70,10 @@ function filterRules(
   })
 }
 
-/** 搜索命中时展开相关节点 */
 function collectExpandKeysForSearch(rules: AlarmDeviceRule2[]): React.Key[] {
   const keys = new Set<React.Key>()
   rules.forEach((r) => {
     keys.add(`root-${r.rootCategory}`)
-    keys.add(`cat-${r.rootCategory}-${r.subCategory}`)
   })
   return [...keys]
 }
@@ -144,20 +141,20 @@ export default function AlarmSettings2() {
     setEditingKey(null)
     form.resetFields()
     form.setFieldsValue({
-      devicePaths: presetPaths ?? [],
+      subCategoryPaths: presetPaths ?? [],
       thresholdMode: 'deviceTimeout',
       customMinutes: DEFAULT_TIMEOUT_MINUTES,
       level: '三级告警',
     })
   }
 
-  const openEdit = (deviceKey: string) => {
-    const record = findDeviceRule(rules, deviceKey)
+  const openEdit = (ruleKey: string) => {
+    const record = findDeviceRule(rules, ruleKey)
     if (!record) return
     setModal('edit')
-    setEditingKey(deviceKey)
+    setEditingKey(ruleKey)
     form.setFieldsValue({
-      devicePaths: [ruleToDevicePath(record)],
+      subCategoryPaths: [ruleToSubCategoryPath(record)],
       level: record.level,
       thresholdMode: record.thresholdMode,
       customMinutes: record.customMinutes ?? DEFAULT_TIMEOUT_MINUTES,
@@ -169,26 +166,25 @@ export default function AlarmSettings2() {
       const thresholdDisplay = formatThresholdDisplay(values.thresholdMode, values.customMinutes)
 
       if (modal === 'add') {
-        const selections = pathsToDeviceSelections(values.devicePaths ?? [])
+        const selections = pathsToSubCategorySelections(values.subCategoryPaths ?? [])
         if (!selections.length) {
-          message.warning('请至少选择一个设备')
+          message.warning('请至少选择一个二级子类')
           return
         }
-        const existing = new Set(rules.map((r) => devicePathKey(r.rootCategory, r.subCategory, r.deviceName)))
+        const existing = new Set(rules.map((r) => subCategoryPathKey(r.rootCategory, r.subCategory)))
         const toAdd = selections.filter(
-          (s) => !existing.has(devicePathKey(s.rootCategory, s.subCategory, s.deviceName)),
+          (s) => !existing.has(subCategoryPathKey(s.rootCategory, s.subCategory)),
         )
         const skipped = selections.length - toAdd.length
         if (!toAdd.length) {
-          message.error('所选设备均已配置告警规则')
+          message.error('所选子类均已配置告警规则')
           return
         }
         const newRows = toAdd.map((s, i) =>
-          createDeviceRule(
+          createSubCategoryRule(
             {
               rootCategory: s.rootCategory,
               subCategory: s.subCategory,
-              deviceName: s.deviceName,
               level: values.level,
               thresholdMode: values.thresholdMode,
               customMinutes: values.customMinutes,
@@ -218,53 +214,61 @@ export default function AlarmSettings2() {
     })
   }
 
-  const handleDelete = (deviceKey: string) => {
-    const record = findDeviceRule(rules, deviceKey)
+  const handleDelete = (ruleKey: string) => {
+    const record = findDeviceRule(rules, ruleKey)
     if (!record) return
     Modal.confirm({
       title: '确认删除',
-      content: `确定删除设备「${record.rootCategory} / ${record.subCategory} / ${record.deviceName}」的告警设置吗？`,
+      content: `确定删除「${record.rootCategory} / ${record.subCategory}」的告警设置吗？`,
       okType: 'danger',
       onOk: () => {
-        setRules((prev) => prev.filter((r) => r.key !== deviceKey))
-        setSelected((prev) => prev.filter((k) => k !== deviceKey))
+        setRules((prev) => prev.filter((r) => r.key !== ruleKey))
+        setSelected((prev) => prev.filter((k) => k !== ruleKey))
         message.success('删除成功')
       },
     })
   }
 
   const handleBatchDelete = () => {
-    const deviceKeys = selected.filter((k) => rules.some((r) => r.key === k))
-    if (!deviceKeys.length) {
-      message.warning('请选择要删除的设备')
+    const ruleKeys = selected.filter((k) => rules.some((r) => r.key === k))
+    if (!ruleKeys.length) {
+      message.warning('请选择要删除的子类')
       return
     }
     Modal.confirm({
       title: '批量删除',
-      content: `确定删除选中的 ${deviceKeys.length} 条设备告警设置吗？`,
+      content: `确定删除选中的 ${ruleKeys.length} 条告警设置吗？`,
       okType: 'danger',
       onOk: () => {
-        setRules((prev) => prev.filter((r) => !deviceKeys.includes(r.key)))
+        setRules((prev) => prev.filter((r) => !ruleKeys.includes(r.key)))
         setSelected([])
         message.success('删除成功')
       },
     })
   }
 
+  const isCategoryRow = (record: AlarmSettings2TreeRow) => record.rowType === 'category'
+
   const columns: ColumnsType<AlarmSettings2TreeRow> = [
     {
       title: '告警设备',
       dataIndex: 'name',
-      width: COL_WIDTH + 80,
+      width: COL_WIDTH,
       ellipsis: true,
+    },
+    {
+      title: '子级数量',
+      dataIndex: 'childCount',
+      width: COL_WIDTH,
+      align: 'center',
+      render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '阈值',
       dataIndex: 'thresholdDisplay',
       width: COL_WIDTH,
       ellipsis: true,
-      align: 'left',
-      render: (v, record) => (record.rowType === 'device' ? v : ''),
+      render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '告警等级',
@@ -272,22 +276,21 @@ export default function AlarmSettings2() {
       width: COL_WIDTH,
       align: 'center',
       render: (v, record) =>
-        record.rowType === 'device' ? <Tag color={LEVEL_COLORS[v]}>{v}</Tag> : '',
+        isCategoryRow(record) ? <Tag color={LEVEL_COLORS[v]}>{v}</Tag> : '',
     },
     {
       title: '创建时间',
       dataIndex: 'createTime',
       width: COL_WIDTH,
       ellipsis: true,
-      render: (v, record) => (record.rowType === 'device' ? v : ''),
+      render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '操作',
       width: COL_WIDTH,
-      fixed: 'right',
       align: 'center',
       render: (_v, record) =>
-        record.rowType === 'device' ? (
+        isCategoryRow(record) ? (
           <Space size={8}>
             <a onClick={() => openEdit(record.key)}>编辑</a>
             <a style={{ color: '#ff4d4f' }} onClick={() => handleDelete(record.key)}>
@@ -384,10 +387,10 @@ export default function AlarmSettings2() {
           onChange: setSelected,
           checkStrictly: true,
           getCheckboxProps: (record) => ({
-            disabled: record.rowType !== 'device',
+            disabled: record.rowType !== 'category',
           }),
         }}
-        scroll={{ x: COL_WIDTH * 4 + 240 }}
+        scroll={{ x: COL_WIDTH * COLUMN_COUNT + 48 }}
         style={{ padding: '0 16px 16px' }}
       />
       <Modal
@@ -409,13 +412,13 @@ export default function AlarmSettings2() {
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="devicePaths"
+            name="subCategoryPaths"
             label="告警设备"
             rules={[{ required: true, message: '请选择告警设备' }]}
             extra={
               <Text type="secondary">
                 {modal === 'add'
-                  ? '先选设备类别，再选子类与设备名称，可多选（参考资产分类级联选择）'
+                  ? '先选设备类别，再选二级子类，可多选（精确到二级子项）'
                   : '编辑时不可更改设备，仅可调整等级与阈值'}
               </Text>
             }
@@ -424,7 +427,7 @@ export default function AlarmSettings2() {
               multiple={modal === 'add'}
               disabled={modal === 'edit'}
               maxTagCount="responsive"
-              placeholder="请选择设备类别 / 子类 / 设备名称"
+              placeholder="请选择设备类别 / 二级子类"
               options={catalogOptions}
               displayRender={(labels) => labels.join(' / ')}
               showCheckedStrategy={Cascader.SHOW_CHILD}

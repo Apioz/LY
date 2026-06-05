@@ -3,7 +3,7 @@ import { Table, Select, Space, DatePicker, Tag, Modal, Descriptions, message, Bu
 import SearchBar from '../../components/SearchBar'
 import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
-import { syncAlarmToFacility, closeFacilityByAlarm } from '../../store/alarmSync'
+import { closeFacilityByAlarm } from '../../store/alarmSync'
 
 export default function AlarmList() {
   const [data, setData] = useState<AlarmListItem[]>(alarmListData)
@@ -73,44 +73,10 @@ export default function AlarmList() {
               模拟恢复
             </a>
           )}
-          {record.status === '待处理' && (
-            <a
-              onClick={() => {
-                syncAlarmToFacility(record)
-                message.success('告警工单已同步至设施工单，请运维人员处理')
-              }}
-            >
-              同步工单
-            </a>
-          )}
         </Space>
       ),
     },
   ]
-
-  const handleRelease = () => {
-    if (!detail || detail.status !== '待处理') return
-    Modal.confirm({
-      title: '解除告警',
-      content: (
-        <div>
-          <p>确认解除告警「{detail.name}」？</p>
-          <p style={{ color: '#666', fontSize: 13 }}>解除后将同步关闭设施工单中关联的告警处置工单，完成闭环。</p>
-        </div>
-      ),
-      onOk: () => {
-        const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
-        setData((prev) =>
-          prev.map((r) =>
-            r.id === detail.id ? { ...r, status: '已处理' as const, releaseTime: now } : r,
-          ),
-        )
-        closeFacilityByAlarm(detail.id)
-        setDetail((d) => (d ? { ...d, status: '已处理', releaseTime: now } : null))
-        message.success('告警已解除，设施工单已关闭')
-      },
-    })
-  }
 
   return (
     <>
@@ -166,18 +132,7 @@ export default function AlarmList() {
         title="告警详情"
         open={!!detail}
         onCancel={() => setDetail(null)}
-        footer={
-          detail?.status === '待处理' ? (
-            <Space>
-              <Button type="primary" onClick={handleRelease}>
-                解除告警
-              </Button>
-              <Button onClick={() => setDetail(null)}>关闭</Button>
-            </Space>
-          ) : (
-            <Button onClick={() => setDetail(null)}>关闭</Button>
-          )
-        }
+        footer={<Button onClick={() => setDetail(null)}>关闭</Button>}
         width={560}
       >
         {detail && (

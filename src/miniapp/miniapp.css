@@ -1,0 +1,529 @@
+/* 华为 Mate 80 Pro Max：6.9 英寸，2848×1320（竖屏宽×高），逻辑视口约 440×949px */
+:root {
+  --mate80-width: 440px;
+  --mate80-height: 949px;
+  --mate80-radius: 28px;
+  --mate80-bezel: 10px;
+}
+
+.mini-shell {
+  min-height: 100vh;
+  background: #e8ecf1;
+  display: flex;
+  flex-direction: column;
+}
+.mini-shell-header {
+  height: 48px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.mini-phone-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 16px 32px;
+  overflow: auto;
+}
+
+.mini-phone {
+  width: var(--mate80-width);
+  height: var(--mate80-height);
+  max-width: 100%;
+  flex-shrink: 0;
+  background: #f5f6f8;
+  border-radius: var(--mate80-radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: var(--mate80-bezel) solid #1a1a1a;
+}
+
+.mini-status-bar {
+  height: 32px;  background: linear-gradient(180deg, #4a9eff 0%, #6eb5ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mini-nav-bar {
+  height: 48px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 16px;
+  font-weight: 600;
+  position: relative;
+}
+
+.mini-nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 17px;
+}
+
+.mini-nav-back {
+  color: #333;
+  cursor: pointer;
+  font-size: 22px;
+  width: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mini-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 72px;
+  justify-content: flex-end;
+}
+
+.mini-nav-dot {
+  font-size: 14px;
+  color: #333;
+  letter-spacing: 1px;
+}
+
+.mini-nav-circle {
+  font-size: 14px;
+  color: #333;
+  border: 1.5px solid #333;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mini-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 60px;
+  -webkit-overflow-scrolling: touch;
+}
+.mini-home-banner {
+  background: linear-gradient(135deg, #4a9eff 0%, #7ec8ff 100%);
+  padding: 16px;
+  color: #fff;
+}
+
+.mini-home-banner h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.mini-home-banner p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.mini-section {
+  background: #fff;
+  margin: 12px;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.mini-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mini-wo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.mini-wo-item {
+  text-align: center;
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.mini-wo-item:hover {
+  background: #f0f7ff;
+}
+
+.mini-wo-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin: 0 auto 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  position: relative;
+}
+
+.mini-wo-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 8px;
+  min-width: 16px;
+}
+
+.mini-wo-label {
+  font-size: 12px;
+  color: #333;
+}
+
+.mini-list-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.mini-list-item:last-child {
+  border-bottom: none;
+}
+
+.mini-work-list-page {
+  background: #f5f5f5;
+  min-height: 100%;
+}
+
+.mini-tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  overflow-x: auto;
+}
+
+.mini-tabs-work .mini-tab {
+  flex: 1;
+  font-size: 14px;
+  padding: 12px 4px;
+}
+
+.mini-tab {
+  text-align: center;
+  padding: 14px 8px;
+  font-size: 15px;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.mini-tab.active {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+  font-weight: 500;
+}
+
+.mini-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.mini-filter-fixed {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.mini-work-list-page .mini-filter-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.mini-filter-chip {
+  padding: 5px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  background: #fff;
+  color: #666;
+  white-space: nowrap;
+}
+
+.mini-filter-chip.active {
+  border-color: #1890ff;
+  color: #fff;
+  background: #1890ff;
+}
+
+.mini-order-list {
+  padding: 10px 12px 16px;
+}
+
+.mini-empty {
+  text-align: center;
+  color: #999;
+  padding: 48px 16px;
+  font-size: 14px;
+}
+
+.mini-order-card {
+  background: #fff;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  padding: 14px 12px;
+  cursor: pointer;
+}
+
+.mini-order-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mini-type-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  color: #fff;
+  background: #1890ff;
+  flex-shrink: 0;
+}
+
+.mini-order-time {
+  flex: 1;
+  font-size: 13px;
+  color: #999;
+}
+
+.mini-order-status {
+  font-size: 13px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.mini-order-field {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+.mini-order-label {
+  color: #999;
+}
+
+.mini-order-value {
+  color: #333;
+}
+
+/* 个人中心 */
+.mini-profile-page {
+  background: linear-gradient(180deg, #d6ebff 0%, #eef5fc 120px, #eef5fc 100%);
+  min-height: 100%;
+  padding-bottom: 24px;
+}
+
+.mini-profile-topbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0 12px;
+}
+
+.mini-profile-topbar-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #333;
+}
+
+.mini-profile-topbar .mini-nav-actions {
+  position: absolute;
+  right: 12px;
+}
+
+.mini-profile-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 16px 24px;
+}
+
+.mini-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.mini-profile-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.mini-profile-org {
+  font-size: 13px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.mini-profile-menu {
+  background: #fff;
+  margin: 0 12px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mini-profile-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  font-size: 15px;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.mini-profile-menu-item:last-child {
+  border-bottom: none;
+}
+
+.mini-profile-arrow {
+  color: #ccc;
+  font-size: 12px;
+}
+
+.mini-profile-logout {
+  display: block;
+  margin: 32px auto 0;
+  padding: 10px 48px;
+  font-size: 15px;
+  color: #1890ff;
+  background: #fff;
+  border: 1px solid #1890ff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mini-detail-block {
+  background: #fff;
+  margin: 12px;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.mini-detail-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.mini-detail-row {
+  display: flex;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.mini-detail-label {
+  color: #999;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.mini-flow-item {
+  padding: 10px 0;
+  border-left: 2px solid #1890ff;
+  padding-left: 12px;
+  margin-left: 4px;
+  margin-bottom: 8px;
+}
+
+.mini-flow-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.mini-flow-action {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.mini-btn-primary {
+  margin: 12px;
+  background: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  width: calc(100% - 24px);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.mini-tabbar {
+  display: flex;
+  background: #fff;
+  border-top: 1px solid #eee;
+  height: 56px;
+  flex-shrink: 0;
+}
+.mini-tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  color: #999;
+  cursor: pointer;
+}
+
+.mini-tabbar-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.mini-tabbar-icon-active {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #1890ff;
+  font-size: 16px;
+}
+
+.mini-tabbar-item.active {
+  color: #1890ff;
+}
