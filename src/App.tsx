@@ -13,7 +13,7 @@ import InspectionReport from './pages/InspectionReport'
 import InspectionContentConfig from './pages/InspectionContentConfig'
 import SystemDictionary from './pages/SystemDictionary'
 import FacilityWorkOrder from './pages/FacilityWorkOrder'
-import { AlarmStatistics, AlarmList, AlarmSettings } from './pages/AlarmPages'
+import { AlarmStatistics, AlarmList, AlarmSettings, AlarmSettings2 } from './pages/AlarmPages'
 import { InspectionCalendar } from './pages/PlaceholderPages'
 import FireDeviceManagement from './pages/device/FireDeviceManagement'
 import FireEventAlarm from './pages/device/FireEventAlarm'
@@ -65,6 +65,7 @@ const pageMap: Record<MenuKey, ReactNode> = {
   'alarm-stats': <AlarmStatistics />,
   'alarm-list': <AlarmList />,
   'alarm-settings': <AlarmSettings />,
+  'alarm-settings-2': <AlarmSettings2 />,
   'facility-work-order': <FacilityWorkOrder />,
   'fire-device-mgmt': <FireDeviceManagement />,
   'fire-event-alarm': <FireEventAlarm />,

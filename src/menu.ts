@@ -26,6 +26,7 @@ export type MenuKey =
   | 'alarm-stats'
   | 'alarm-list'
   | 'alarm-settings'
+  | 'alarm-settings-2'
   | 'facility-work-order'
   | 'fire-device-mgmt'
   | 'fire-event-alarm'
@@ -50,6 +51,7 @@ export const menuItems: MenuItem[] = [
       { key: 'alarm-stats', label: '告警统计', route: 'alarm-stats' },
       { key: 'alarm-list', label: '告警列表', route: 'alarm-list' },
       { key: 'alarm-settings', label: '告警设置', route: 'alarm-settings' },
+      { key: 'alarm-settings-2', label: '告警设置2', route: 'alarm-settings-2' },
     ],
   },
   {
@@ -186,6 +188,7 @@ export const pageTitles: Record<MenuKey, string> = {
   'alarm-stats': '告警统计',
   'alarm-list': '告警列表',
   'alarm-settings': '告警设置',
+  'alarm-settings-2': '告警设置2',
   'facility-work-order': '设施工单',
   'fire-device-mgmt': '消防设备-设备管理',
   'fire-event-alarm': '事件告警',

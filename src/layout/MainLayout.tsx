@@ -111,7 +111,8 @@ export default function MainLayout({ activeKey, onNavigate, children }: MainLayo
     ) {
       keys.push('group-archive', 'group-project-archive')
     }
-    if (['alarm-stats', 'alarm-list', 'alarm-settings'].includes(activeKey)) keys.push('group-alarm')
+    if (['alarm-stats', 'alarm-list', 'alarm-settings', 'alarm-settings-2'].includes(activeKey))
+      keys.push('group-alarm')
     if (['fire-device-mgmt', 'fire-event-alarm'].includes(activeKey)) {
       keys.push('group-device-mgmt', 'group-fire-device')
     }
