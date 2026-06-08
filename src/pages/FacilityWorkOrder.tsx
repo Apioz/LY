@@ -101,6 +101,13 @@ export default function FacilityWorkOrder() {
         render: (v: string[]) => v?.join('、') || '-',
       },
       {
+        title: '安装位置',
+        dataIndex: 'installLocation',
+        width: COL_WIDTH,
+        ellipsis: true,
+        render: (v: string) => v || '-',
+      },
+      {
         title: '告警等级',
         dataIndex: 'level',
         width: COL_WIDTH,
@@ -177,7 +184,7 @@ export default function FacilityWorkOrder() {
     setDetail({ ...detail, damageNote: damageNoteDraft.trim() })
   }
 
-  const scrollX = COL_WIDTH * (showDamageNoteCol ? 8 : 7) + 64 + (showDamageNoteCol ? 120 : 80)
+  const scrollX = COL_WIDTH * (showDamageNoteCol ? 9 : 8) + 64 + (showDamageNoteCol ? 120 : 80)
 
   return (
     <>
@@ -266,6 +273,7 @@ export default function FacilityWorkOrder() {
             <Descriptions bordered column={1} size="small">
               <Descriptions.Item label="工单编号">{detail.id}</Descriptions.Item>
               <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
+              <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
               <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
               <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
               <Descriptions.Item label="告警时间">{detail.alarmTime}</Descriptions.Item>

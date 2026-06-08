@@ -7,6 +7,8 @@ export interface AlarmListItem {
   level: AlarmLevel
   /** 告警设备 */
   alarmDevices: string[]
+  /** 设备安装位置 */
+  installLocation: string
   desc: AlarmDescType
   status: AlarmStatus
   time: string
@@ -37,12 +39,12 @@ export interface AlarmRuleItem {
 }
 
 export const alarmListData: AlarmListItem[] = [
-  { id: 'AL20260601001', name: '烟感主机告警', level: '一级告警', alarmDevices: ['消防主机', '烟感探测器'], desc: '火灾报警', status: '待处理', time: '2026-06-01 08:12:33' },
-  { id: 'AL20260601002', name: '配电柜通讯异常', level: '二级告警', alarmDevices: ['配电柜'], desc: '故障报警', status: '已处理', time: '2026-06-01 09:45:11', releaseTime: '2026-06-01 10:20:00' },
-  { id: 'AL20260601003', name: '水泵响应超时', level: '三级告警', alarmDevices: ['消防水泵', '生活水泵'], desc: '设备超时', status: '待处理', time: '2026-06-01 11:20:05' },
-  { id: 'AL20260601004', name: '消防通道烟感', level: '四级告警', alarmDevices: ['烟感探测器'], desc: '火灾报警', status: '误报', time: '2026-05-31 16:30:22', releaseTime: '2026-05-31 17:00:00' },
-  { id: 'AL20260601005', name: '电梯网关离线', level: '二级告警', alarmDevices: ['电梯设备'], desc: '故障报警', status: '损坏', time: '2026-05-30 22:15:40' },
-  { id: 'AL20260601006', name: '空调机组超时', level: '三级告警', alarmDevices: ['配电柜'], desc: '设备超时', status: '已处理', time: '2026-05-30 14:08:18', releaseTime: '2026-05-30 15:30:00', autoResolved: true },
+  { id: 'AL20260601001', name: '烟感主机告警', level: '一级告警', alarmDevices: ['消防主机', '烟感探测器'], installLocation: '双翼大厦消防控制室', desc: '火灾报警', status: '待处理', time: '2026-06-01 08:12:33' },
+  { id: 'AL20260601002', name: '配电柜通讯异常', level: '二级告警', alarmDevices: ['配电柜'], installLocation: '双翼大厦1层配电间', desc: '故障报警', status: '已处理', time: '2026-06-01 09:45:11', releaseTime: '2026-06-01 10:20:00' },
+  { id: 'AL20260601003', name: '水泵响应超时', level: '三级告警', alarmDevices: ['消防水泵', '生活水泵'], installLocation: '双翼大厦地下一层消防泵房', desc: '设备超时', status: '待处理', time: '2026-06-01 11:20:05' },
+  { id: 'AL20260601004', name: '消防通道烟感', level: '四级告警', alarmDevices: ['烟感探测器'], installLocation: '森林湾大厦3层消防通道', desc: '火灾报警', status: '误报', time: '2026-05-31 16:30:22', releaseTime: '2026-05-31 17:00:00' },
+  { id: 'AL20260601005', name: '电梯网关离线', level: '二级告警', alarmDevices: ['电梯设备'], installLocation: '双翼大厦B栋客梯机房', desc: '故障报警', status: '损坏', time: '2026-05-30 22:15:40' },
+  { id: 'AL20260601006', name: '空调机组超时', level: '三级告警', alarmDevices: ['配电柜'], installLocation: '中期大厦屋顶设备平台', desc: '设备超时', status: '已处理', time: '2026-05-30 14:08:18', releaseTime: '2026-05-30 15:30:00', autoResolved: true },
 ]
 
 export const realtimeHumanAlarms: RealtimeAlarmItem[] = [

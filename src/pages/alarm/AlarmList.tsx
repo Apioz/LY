@@ -36,6 +36,13 @@ export default function AlarmList() {
       ellipsis: true,
       render: (v: string[]) => v?.join('、') || '-',
     },
+    {
+      title: '安装位置',
+      dataIndex: 'installLocation',
+      width: 180,
+      ellipsis: true,
+      render: (v: string) => v || '-',
+    },
     { title: '告警描述', dataIndex: 'desc', width: 110 },
     {
       title: '告警状态',
@@ -124,7 +131,7 @@ export default function AlarmList() {
         rowKey="id"
         columns={columns}
         dataSource={filtered}
-        scroll={{ x: 1300 }}
+        scroll={{ x: 1480 }}
         pagination={{ showTotal: (t) => `共 ${t} 条`, pageSize: 10, showSizeChanger: true }}
         style={{ padding: 16 }}
       />
@@ -141,6 +148,7 @@ export default function AlarmList() {
             <Descriptions.Item label="告警名称">{detail.name}</Descriptions.Item>
             <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
             <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
+            <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
             <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
             <Descriptions.Item label="告警状态">
               {detail.status}

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Dropdown, Button, Space } from 'antd'
 import { DesktopOutlined, MobileOutlined, DownOutlined, RightOutlined } from '@ant-design/icons'
-import { getFacilityOrders, subscribeFacility, acceptFacilityOrder } from '../store/alarmSync'
+import { getFacilityOrders, subscribeFacility } from '../store/alarmSync'
 import { MINI_CURRENT_USER, MINI_USER_ORG } from '../store/miniProgramUser'
 import {
   getAllMiniOrders,
+  getFacilityListOrders,
+  getHandledRecords,
   getMiniOrderById,
   countByType,
   miniNotices,
@@ -13,9 +15,20 @@ import {
   MINI_TYPE_STATUS,
   MINI_LIST_TABS,
   subscribeMiniOrders,
+  subscribeHandledRecords,
+  handledToMiniOrder,
   type MiniWorkOrder,
   type MiniWorkOrderType,
 } from '../mock/miniProgramData'
+import { MiniFacilityDetail, MiniFacilityForm, type FacilityFormType } from './MiniFacilityViews'
+import {
+  TabDataIcon,
+  TabHomeIcon,
+  TabTeamIcon,
+  TabUserIcon,
+  ProfileAvatarIcon,
+  WorkOrderIcon,
+} from './MiniIcons'
 import './miniapp.css'
 
 type MiniRoute =
@@ -24,41 +37,52 @@ type MiniRoute =
   | { page: 'detail'; id: string }
   | { page: 'profile' }
   | { page: 'my-orders' }
+  | { page: 'facility-form'; form: FacilityFormType; id: string }
 
 interface MiniProgramAppProps {
   onSwitchToAdmin: () => void
 }
 
-const WO_ICONS: Record<MiniWorkOrderType, string> = {
-  repair: '🔧',
-  facility: '🏗️',
-  maintenance: '📋',
-  inspection: '✅',
-}
-
 const ROOT_PAGES: MiniRoute['page'][] = ['home', 'profile']
+const TAB_ACTIVE = '#1890ff'
+const TAB_INACTIVE = '#999999'
 
 export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps) {
   const [route, setRoute] = useState<MiniRoute>({ page: 'home' })
   const [prevRoute, setPrevRoute] = useState<MiniRoute | null>(null)
   const [facilityOrders, setFacilityOrders] = useState(getFacilityOrders())
   const [, tick] = useState(0)
+  const [, handledTick] = useState(0)
 
   const navigate = (next: MiniRoute) => {
     setPrevRoute(route)
     setRoute(next)
   }
 
-  useEffect(() => subscribeFacility(() => setFacilityOrders([...getFacilityOrders()])), [])
-  useEffect(() => subscribeMiniOrders(() => tick((n) => n + 1)), [])
+  const refreshFacility = () => setFacilityOrders([...getFacilityOrders()])
 
-  const allOrders = useMemo(() => getAllMiniOrders(facilityOrders), [facilityOrders, tick])
-  const counts = useMemo(() => countByType(allOrders), [allOrders])
+  useEffect(() => subscribeFacility(refreshFacility), [])
+  useEffect(() => subscribeMiniOrders(() => tick((n) => n + 1)), [])
+  useEffect(() => subscribeHandledRecords(() => handledTick((n) => n + 1)), [])
+
+  const allOrders = useMemo(() => getAllMiniOrders(facilityOrders), [facilityOrders, tick, handledTick])
+  const counts = useMemo(() => countByType(allOrders, facilityOrders), [allOrders, facilityOrders])
 
   const navTitle = useMemo(() => {
     if (route.page === 'list') return '工作列表'
     if (route.page === 'detail') return '工单详情'
     if (route.page === 'my-orders') return '我的工单'
+    if (route.page === 'facility-form') {
+      const titles: Record<FacilityFormType, string> = {
+        dispatch: '派单',
+        urge: '催单',
+        revoke: '撤销',
+        cancel: '取消接单',
+        complete: '完成',
+        damage: '提交损坏',
+      }
+      return titles[route.form]
+    }
     return ''
   }, [route])
 
@@ -72,6 +96,8 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
       setRoute({ page: 'home' })
     }
   }
+
+  const detailOrder = route.page === 'detail' ? getMiniOrderById(route.id, facilityOrders) : undefined
 
   return (
     <div className="mini-shell">
@@ -120,24 +146,40 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
             {route.page === 'list' && (
               <MiniWorkOrderList
                 type={route.type}
+                facilityOrders={facilityOrders}
                 orders={allOrders}
                 onTypeChange={(type) => navigate({ page: 'list', type })}
                 onOpenDetail={(id) => navigate({ page: 'detail', id })}
               />
             )}
-            {route.page === 'detail' && (
-              <MiniWorkOrderDetail
-                order={getMiniOrderById(route.id, facilityOrders)}
-                onAccept={(id) => {
-                  acceptFacilityOrder(id, MINI_CURRENT_USER)
-                  setFacilityOrders([...getFacilityOrders()])
+            {route.page === 'detail' && detailOrder && detailOrder.type === 'facility' && (
+              <MiniFacilityDetail
+                order={detailOrder}
+                onOpenForm={(form) => navigate({ page: 'facility-form', form, id: detailOrder.id })}
+                onRefresh={refreshFacility}
+              />
+            )}
+            {route.page === 'detail' && detailOrder && detailOrder.type !== 'facility' && (
+              <MiniWorkOrderDetail order={detailOrder} />
+            )}
+            {route.page === 'detail' && !detailOrder && <div className="mini-empty">工单不存在</div>}
+            {route.page === 'facility-form' && (
+              <MiniFacilityForm
+                form={route.form}
+                orderId={route.id}
+                onDone={() => {
+                  refreshFacility()
+                  setRoute({ page: 'detail', id: route.id })
+                  setPrevRoute({ page: 'list', type: 'facility' })
                 }}
+                onCancel={goBack}
               />
             )}
             {route.page === 'profile' && <MiniProfile />}
             {route.page === 'my-orders' && (
               <MiniMyWorkOrders
                 orders={allOrders}
+                handledRecords={getHandledRecords()}
                 onOpenDetail={(id) => navigate({ page: 'detail', id })}
               />
             )}
@@ -147,25 +189,31 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
               className={`mini-tabbar-item ${route.page === 'home' ? 'active' : ''}`}
               onClick={() => navigate({ page: 'home' })}
             >
-              <span className="mini-tabbar-icon">🏠</span>
-              首页
+              <span className="mini-tabbar-icon">
+                <TabHomeIcon size={22} color={route.page === 'home' ? TAB_ACTIVE : TAB_INACTIVE} />
+              </span>
+              <span className="mini-tabbar-label">首页</span>
             </div>
             <div className="mini-tabbar-item">
-              <span className="mini-tabbar-icon">👥</span>
-              协作
+              <span className="mini-tabbar-icon">
+                <TabTeamIcon size={22} color={TAB_INACTIVE} />
+              </span>
+              <span className="mini-tabbar-label">协作</span>
             </div>
             <div className="mini-tabbar-item">
-              <span className="mini-tabbar-icon">📊</span>
-              数据
+              <span className="mini-tabbar-icon">
+                <TabDataIcon size={22} color={TAB_INACTIVE} />
+              </span>
+              <span className="mini-tabbar-label">数据</span>
             </div>
             <div
               className={`mini-tabbar-item ${route.page === 'profile' ? 'active' : ''}`}
               onClick={() => navigate({ page: 'profile' })}
             >
-              <span className={`mini-tabbar-icon ${route.page === 'profile' ? 'mini-tabbar-icon-active' : ''}`}>
-                😊
+              <span className="mini-tabbar-icon">
+                <TabUserIcon size={22} color={route.page === 'profile' ? TAB_ACTIVE : TAB_INACTIVE} />
               </span>
-              我的
+              <span className="mini-tabbar-label">我的</span>
             </div>
           </div>
         </div>
@@ -206,11 +254,8 @@ function MiniHome({
               className="mini-wo-item"
               onClick={() => (item.type === 'my' ? onOpenMy() : onOpenList(item.type))}
             >
-              <div
-                className="mini-wo-icon"
-                style={{ background: item.type === 'my' ? '#f0f0ff' : '#e6f7ff' }}
-              >
-                {item.type === 'my' ? '📂' : WO_ICONS[item.type]}
+              <div className="mini-wo-icon">
+                <WorkOrderIcon type={item.type} size={36} />
                 {item.count > 0 && <span className="mini-wo-badge">{item.count > 99 ? '99+' : item.count}</span>}
               </div>
               <div className="mini-wo-label">{item.label}</div>
@@ -246,11 +291,13 @@ function MiniHome({
 
 function MiniWorkOrderList({
   type,
+  facilityOrders,
   orders,
   onTypeChange,
   onOpenDetail,
 }: {
   type: MiniWorkOrderType
+  facilityOrders: ReturnType<typeof getFacilityOrders>
   orders: MiniWorkOrder[]
   onTypeChange: (t: MiniWorkOrderType) => void
   onOpenDetail: (id: string) => void
@@ -258,10 +305,13 @@ function MiniWorkOrderList({
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
   const listOrders = useMemo(() => {
-    let rows = orders.filter((o) => o.type === type)
+    let rows =
+      type === 'facility'
+        ? getFacilityListOrders(facilityOrders)
+        : orders.filter((o) => o.type === type)
     if (statusFilter) rows = rows.filter((o) => o.status === statusFilter)
     return rows
-  }, [orders, type, statusFilter])
+  }, [orders, type, statusFilter, facilityOrders])
 
   const statuses = MINI_TYPE_STATUS[type]
 
@@ -322,7 +372,9 @@ function MiniProfile() {
         </span>
       </div>
       <div className="mini-profile-user">
-        <div className="mini-profile-avatar">🛡️</div>
+        <div className="mini-profile-avatar">
+          <ProfileAvatarIcon size={56} />
+        </div>
         <div className="mini-profile-info">
           <div className="mini-profile-name">{MINI_CURRENT_USER}</div>
           <div className="mini-profile-org">{MINI_USER_ORG}</div>
@@ -345,43 +397,59 @@ function MiniProfile() {
 
 function MiniMyWorkOrders({
   orders,
+  handledRecords,
   onOpenDetail,
 }: {
   orders: MiniWorkOrder[]
+  handledRecords: ReturnType<typeof getHandledRecords>
   onOpenDetail: (id: string) => void
 }) {
   const [tab, setTab] = useState<'initiated' | 'todo' | 'done'>('initiated')
   const [typeFilter, setTypeFilter] = useState<MiniWorkOrderType | null>(null)
 
+  const myHandled = useMemo(
+    () => handledRecords.filter((r) => r.operator === MINI_CURRENT_USER).map(handledToMiniOrder),
+    [handledRecords],
+  )
+
   const filtered = useMemo(() => {
-    let rows = orders
-    if (tab === 'initiated') rows = rows.filter((o) => o.initiator === MINI_CURRENT_USER)
-    else if (tab === 'todo')
-      rows = rows.filter(
+    let rows: MiniWorkOrder[] = []
+    if (tab === 'initiated') {
+      rows = orders.filter((o) => o.initiator === MINI_CURRENT_USER && !o.archiveOnly)
+    } else if (tab === 'todo') {
+      rows = orders.filter(
         (o) =>
+          !o.archiveOnly &&
           o.receiver === MINI_CURRENT_USER &&
           !['已完成', '已处理', '已关单', '已取消'].includes(o.status),
       )
-    else
-      rows = rows.filter(
+    } else {
+      const doneOrders = orders.filter(
         (o) =>
+          !o.archiveOnly &&
           o.receiver === MINI_CURRENT_USER &&
           ['已完成', '已处理', '已关单'].includes(o.status),
       )
+      rows = [...myHandled, ...doneOrders]
+    }
     if (typeFilter) rows = rows.filter((o) => o.type === typeFilter)
     return rows
-  }, [orders, tab, typeFilter])
+  }, [orders, tab, typeFilter, myHandled])
 
-  const initiatedCount = orders.filter((o) => o.initiator === MINI_CURRENT_USER).length
+  const initiatedCount = orders.filter((o) => o.initiator === MINI_CURRENT_USER && !o.archiveOnly).length
   const todoCount = orders.filter(
     (o) =>
+      !o.archiveOnly &&
       o.receiver === MINI_CURRENT_USER &&
       !['已完成', '已处理', '已关单', '已取消'].includes(o.status),
   ).length
-  const doneCount = orders.filter(
-    (o) =>
-      o.receiver === MINI_CURRENT_USER && ['已完成', '已处理', '已关单'].includes(o.status),
-  ).length
+  const doneCount =
+    orders.filter(
+      (o) =>
+        !o.archiveOnly &&
+        o.receiver === MINI_CURRENT_USER &&
+        ['已完成', '已处理', '已关单'].includes(o.status),
+    ).length + myHandled.length
 
   return (
     <div className="mini-work-list-page">
@@ -424,20 +492,23 @@ function MiniMyWorkOrders({
 }
 
 function getProblemType(order: MiniWorkOrder) {
+  if (order.type === 'facility') return '设施工单'
   return order.extra?.['问题类型'] ?? MINI_TYPE_LABELS[order.type]
 }
 
 function getProblemDesc(order: MiniWorkOrder) {
+  if (order.type === 'facility') return order.extra?.['告警设备'] ?? order.title
   return order.extra?.['问题描述'] ?? order.description ?? order.title
 }
 
 function OrderCard({ order, onClick }: { order: MiniWorkOrder; onClick: () => void }) {
+  const archiveTag = order.archiveOnly ? order.extra?.['操作类型'] : null
   return (
     <div className="mini-order-card" onClick={onClick}>
       <div className="mini-order-head">
         <span className="mini-type-tag">{MINI_TYPE_LABELS[order.type]}</span>
         <span className="mini-order-time">{order.createTime}</span>
-        <span className="mini-order-status">{order.status}</span>
+        <span className="mini-order-status">{archiveTag ?? order.status}</span>
       </div>
       <div className="mini-order-field">
         <span className="mini-order-label">问题类型：</span>
@@ -447,21 +518,17 @@ function OrderCard({ order, onClick }: { order: MiniWorkOrder; onClick: () => vo
         <span className="mini-order-label">问题描述：</span>
         <span className="mini-order-value">{getProblemDesc(order)}</span>
       </div>
+      {order.type === 'facility' && order.extra?.['安装位置'] && (
+        <div className="mini-order-field">
+          <span className="mini-order-label">安装位置：</span>
+          <span className="mini-order-value">{order.extra['安装位置']}</span>
+        </div>
+      )}
     </div>
   )
 }
 
-function MiniWorkOrderDetail({
-  order,
-  onAccept,
-}: {
-  order: MiniWorkOrder | undefined
-  onAccept: (id: string) => void
-}) {
-  if (!order) return <div className="mini-empty">工单不存在</div>
-
-  const canAccept = order.type === 'facility' && order.status === '待处理'
-
+function MiniWorkOrderDetail({ order }: { order: MiniWorkOrder }) {
   return (
     <>
       <div className="mini-detail-block">
@@ -511,11 +578,6 @@ function MiniWorkOrderDetail({
           </div>
         ))}
       </div>
-      {canAccept && (
-        <button type="button" className="mini-btn-primary" onClick={() => onAccept(order.id)}>
-          接单维修
-        </button>
-      )}
     </>
   )
 }

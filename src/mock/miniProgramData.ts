@@ -1,5 +1,10 @@
 import { MINI_CURRENT_USER } from '../store/miniProgramUser'
-import { FACILITY_ORDER_STATUS, type FacilityFlowRecord, type FacilityOrderItem } from '../store/alarmSync'
+import {
+  MINI_FACILITY_STATUS,
+  type FacilityFlowRecord,
+  type FacilityOrderItem,
+  type MiniFacilityStatus,
+} from '../store/alarmSync'
 
 export type MiniWorkOrderType = 'repair' | 'facility' | 'maintenance' | 'inspection'
 
@@ -7,6 +12,7 @@ export interface MiniFlowRecord {
   time: string
   action: string
   operator: string
+  detail?: string
 }
 
 export interface MiniWorkOrder {
@@ -21,25 +27,52 @@ export interface MiniWorkOrder {
   description?: string
   extra?: Record<string, string>
   flowRecords: MiniFlowRecord[]
-  /** 设施工单关联中台 ID */
   facilityId?: string
+  /** 是否仅在我的已办中展示的归档记录 */
+  archiveOnly?: boolean
+}
+
+/** 取消接单等已办归档记录 */
+export interface MiniHandledRecord {
+  id: string
+  orderId: string
+  type: MiniWorkOrderType
+  action: '取消接单' | '提交完成' | '提交损坏'
+  title: string
+  time: string
+  status: string
+  detail?: string
+  operator: string
 }
 
 export const MINI_TYPE_LABELS: Record<MiniWorkOrderType, string> = {
   repair: '报修',
-  facility: '设施工单',
+  facility: '设施',
   maintenance: '维保',
   inspection: '巡检',
 }
 
+/** 设施工单列表筛选用状态（损坏在全部中展示，不设独立筛选项） */
+export const MINI_FACILITY_LIST_STATUS = ['待派单', '待接单', '处理中', '已完成', '已取消'] as const
+
 export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
   repair: ['待派单', '待审核', '待接单', '报修待完成', '待签字', '待关单', '已关单', '已取消'],
-  facility: [...FACILITY_ORDER_STATUS],
+  facility: [...MINI_FACILITY_LIST_STATUS],
   maintenance: ['待派单', '待审核', '待接单', '处理中', '已完成', '已取消'],
   inspection: ['待执行', '执行中', '已完成', '已取消'],
 }
 
 export const MINI_LIST_TABS: MiniWorkOrderType[] = ['repair', 'facility', 'maintenance', 'inspection']
+
+/** 工单池可见状态：未接单前全员可见 + 损坏可再次接单 */
+export const FACILITY_POOL_STATUSES: MiniFacilityStatus[] = ['待派单', '待接单', '损坏']
+
+export const FACILITY_WORK_GROUPS = ['设施维修一组', '设施维修二组', '消防维保组'] as const
+export const FACILITY_WORKERS: Record<string, string[]> = {
+  设施维修一组: ['张维修', '李维修', '王运维'],
+  设施维修二组: ['赵工', '刘工'],
+  消防维保组: ['陈维保', '周维保'],
+}
 
 export const miniNotices = [
   { id: '1', title: '溧阳消防局关于开展夏季消防安全检查的通知', time: '2026-06-01' },
@@ -185,10 +218,16 @@ let localOrders: MiniWorkOrder[] = [
   },
 ]
 
+let handledRecords: MiniHandledRecord[] = []
 const listeners = new Set<() => void>()
+const handledListeners = new Set<() => void>()
 
 function notify() {
   listeners.forEach((fn) => fn())
+}
+
+function notifyHandled() {
+  handledListeners.forEach((fn) => fn())
 }
 
 export function subscribeMiniOrders(listener: () => void) {
@@ -198,30 +237,80 @@ export function subscribeMiniOrders(listener: () => void) {
   }
 }
 
+export function subscribeHandledRecords(listener: () => void) {
+  handledListeners.add(listener)
+  return () => {
+    handledListeners.delete(listener)
+  }
+}
+
 export function getLocalMiniOrders() {
   return localOrders
 }
 
+export function getHandledRecords() {
+  return handledRecords
+}
+
+export function addHandledRecord(record: Omit<MiniHandledRecord, 'id'>) {
+  handledRecords = [
+    {
+      ...record,
+      id: `HR-${Date.now()}`,
+    },
+    ...handledRecords,
+  ]
+  notifyHandled()
+}
+
 export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
+  const devices = item.alarmDevices.join('、')
   return {
     id: item.id,
     facilityId: item.id,
     type: 'facility',
-    title: `${item.alarmDevices.join('、')} - ${item.desc}`,
-    status: item.status,
+    title: `${devices} - ${item.desc}`,
+    status: String(item.miniStatus),
     createTime: item.alarmTime,
     initiator: item.initiator ?? '系统',
     receiver: item.receiver,
-    description: `告警等级：${item.level}；来源：${item.source}`,
+    description: item.damageNote ? `损坏说明：${item.damageNote}` : undefined,
     extra: {
-      问题类型: '设施工单',
-      问题描述: `${item.alarmDevices.join('、')} - ${item.desc}`,
-      告警设备: item.alarmDevices.join('、'),
-      告警描述: String(item.desc),
+      工单编号: item.id,
+      告警设备: devices,
+      安装位置: item.installLocation,
       告警等级: String(item.level),
+      告警描述: String(item.desc),
+      告警时间: item.alarmTime,
+      来源: item.source,
+      中台状态: String(item.status),
+      ...(item.damageNote ? { 损坏说明: item.damageNote } : {}),
+      ...(item.dispatchGroup ? { 派单工作组: item.dispatchGroup } : {}),
+      ...(item.dispatchNote ? { 派单说明: item.dispatchNote } : {}),
     },
     flowRecords: (item.flowRecords ?? []) as MiniFlowRecord[],
   }
+}
+
+export function handledToMiniOrder(record: MiniHandledRecord): MiniWorkOrder {
+  return {
+    id: record.id,
+    facilityId: record.orderId,
+    type: record.type,
+    title: record.title,
+    status: record.status,
+    createTime: record.time,
+    initiator: record.operator,
+    receiver: record.operator,
+    description: record.detail,
+    extra: { 操作类型: record.action },
+    flowRecords: [{ time: record.time, action: record.action, operator: record.operator, detail: record.detail }],
+    archiveOnly: true,
+  }
+}
+
+export function isFacilityInPublicPool(order: MiniWorkOrder) {
+  return order.type === 'facility' && FACILITY_POOL_STATUSES.includes(order.status as MiniFacilityStatus)
 }
 
 export function getAllMiniOrders(facilityOrders: FacilityOrderItem[]): MiniWorkOrder[] {
@@ -231,23 +320,30 @@ export function getAllMiniOrders(facilityOrders: FacilityOrderItem[]): MiniWorkO
   return [...facilityMini, ...locals]
 }
 
+export function getFacilityListOrders(facilityOrders: FacilityOrderItem[]): MiniWorkOrder[] {
+  return facilityOrders.map(facilityToMiniOrder).filter(isFacilityInPublicPool)
+}
+
 export function getMiniOrderById(id: string, facilityOrders: FacilityOrderItem[]): MiniWorkOrder | undefined {
+  const handled = handledRecords.find((r) => r.id === id)
+  if (handled) return handledToMiniOrder(handled)
   return getAllMiniOrders(facilityOrders).find((o) => o.id === id)
 }
 
-export function countByType(orders: MiniWorkOrder[]) {
+export function countByType(orders: MiniWorkOrder[], facilityOrders: FacilityOrderItem[]) {
+  const pool = getFacilityListOrders(facilityOrders)
   return {
     repair: orders.filter(
       (o) => o.type === 'repair' && !['已完成', '已关单', '已取消'].includes(o.status),
     ).length,
-    facility: orders.filter((o) => o.type === 'facility' && o.status === '待处理').length,
+    facility: pool.length,
     maintenance: orders.filter((o) => o.type === 'maintenance' && o.status !== '已完成').length,
     inspection: orders.filter((o) => o.type === 'inspection' && o.status !== '已完成').length,
     my: orders.filter(
       (o) =>
         o.initiator === MINI_CURRENT_USER ||
         o.receiver === MINI_CURRENT_USER ||
-        (o.type === 'facility' && o.receiver === MINI_CURRENT_USER),
+        (o.type === 'facility' && o.receiver === MINI_CURRENT_USER && o.status === '处理中'),
     ).length,
   }
 }
