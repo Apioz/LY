@@ -12,15 +12,23 @@ import {
   miniNotices,
   miniUpdates,
   MINI_TYPE_LABELS,
-  MINI_TYPE_STATUS,
+  MINI_LIST_FILTER_STATUS,
   MINI_LIST_TABS,
+  MINI_DONE_STATUSES,
+  MINI_CANCELLED_STATUS,
+  getWorkOrderListByType,
   subscribeMiniOrders,
   subscribeHandledRecords,
   handledToMiniOrder,
   type MiniWorkOrder,
   type MiniWorkOrderType,
 } from '../mock/miniProgramData'
-import { MiniFacilityDetail, MiniFacilityForm, type FacilityFormType } from './MiniFacilityViews'
+import {
+  MiniFacilityDetail,
+  MiniFacilityForm,
+  MiniFacilityRepairingForm,
+  type FacilityFormType,
+} from './MiniFacilityViews'
 import {
   TabDataIcon,
   TabHomeIcon,
@@ -28,7 +36,9 @@ import {
   TabUserIcon,
   ProfileAvatarIcon,
   WorkOrderIcon,
+  ServiceWorkOrderIcon,
 } from './MiniIcons'
+import MiniDataPage from './MiniDataPage'
 import './miniapp.css'
 
 type MiniRoute =
@@ -36,6 +46,8 @@ type MiniRoute =
   | { page: 'list'; type: MiniWorkOrderType }
   | { page: 'detail'; id: string }
   | { page: 'profile' }
+  | { page: 'collab' }
+  | { page: 'data' }
   | { page: 'my-orders' }
   | { page: 'facility-form'; form: FacilityFormType; id: string }
 
@@ -43,7 +55,7 @@ interface MiniProgramAppProps {
   onSwitchToAdmin: () => void
 }
 
-const ROOT_PAGES: MiniRoute['page'][] = ['home', 'profile']
+const ROOT_PAGES: MiniRoute['page'][] = ['home', 'profile', 'collab', 'data']
 const TAB_ACTIVE = '#1890ff'
 const TAB_INACTIVE = '#999999'
 
@@ -69,7 +81,7 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
   const counts = useMemo(() => countByType(allOrders, facilityOrders), [allOrders, facilityOrders])
 
   const navTitle = useMemo(() => {
-    if (route.page === 'list') return '工作列表'
+    if (route.page === 'list') return '工单列表'
     if (route.page === 'detail') return '工单详情'
     if (route.page === 'my-orders') return '我的工单'
     if (route.page === 'facility-form') {
@@ -78,8 +90,8 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
         urge: '催单',
         revoke: '撤销',
         cancel: '取消接单',
+        repairing: '维修中',
         complete: '完成',
-        damage: '提交损坏',
       }
       return titles[route.form]
     }
@@ -143,6 +155,12 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
                 onOpenMy={() => navigate({ page: 'my-orders' })}
               />
             )}
+            {route.page === 'collab' && (
+              <MiniCollabPage
+                myCount={counts.my}
+                onOpenMyOrders={() => navigate({ page: 'my-orders' })}
+              />
+            )}
             {route.page === 'list' && (
               <MiniWorkOrderList
                 type={route.type}
@@ -163,7 +181,23 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
               <MiniWorkOrderDetail order={detailOrder} />
             )}
             {route.page === 'detail' && !detailOrder && <div className="mini-empty">工单不存在</div>}
-            {route.page === 'facility-form' && (
+            {route.page === 'facility-form' && route.form === 'repairing' && (
+              <MiniFacilityRepairingForm
+                orderId={route.id}
+                onHold={() => {
+                  refreshFacility()
+                  setRoute({ page: 'detail', id: route.id })
+                  setPrevRoute({ page: 'list', type: 'facility' })
+                }}
+                onNext={() => {
+                  refreshFacility()
+                  setRoute({ page: 'facility-form', form: 'complete', id: route.id })
+                  setPrevRoute({ page: 'facility-form', form: 'repairing', id: route.id })
+                }}
+                onCancel={goBack}
+              />
+            )}
+            {route.page === 'facility-form' && route.form !== 'repairing' && (
               <MiniFacilityForm
                 form={route.form}
                 orderId={route.id}
@@ -176,6 +210,7 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
               />
             )}
             {route.page === 'profile' && <MiniProfile />}
+            {route.page === 'data' && <MiniDataPage />}
             {route.page === 'my-orders' && (
               <MiniMyWorkOrders
                 orders={allOrders}
@@ -194,15 +229,24 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
               </span>
               <span className="mini-tabbar-label">首页</span>
             </div>
-            <div className="mini-tabbar-item">
+            <div
+              className={`mini-tabbar-item ${route.page === 'collab' || route.page === 'my-orders' ? 'active' : ''}`}
+              onClick={() => navigate({ page: 'collab' })}
+            >
               <span className="mini-tabbar-icon">
-                <TabTeamIcon size={22} color={TAB_INACTIVE} />
+                <TabTeamIcon
+                  size={22}
+                  color={route.page === 'collab' || route.page === 'my-orders' ? TAB_ACTIVE : TAB_INACTIVE}
+                />
               </span>
               <span className="mini-tabbar-label">协作</span>
             </div>
-            <div className="mini-tabbar-item">
+            <div
+              className={`mini-tabbar-item ${route.page === 'data' ? 'active' : ''}`}
+              onClick={() => navigate({ page: 'data' })}
+            >
               <span className="mini-tabbar-icon">
-                <TabDataIcon size={22} color={TAB_INACTIVE} />
+                <TabDataIcon size={22} color={route.page === 'data' ? TAB_ACTIVE : TAB_INACTIVE} />
               </span>
               <span className="mini-tabbar-label">数据</span>
             </div>
@@ -308,12 +352,12 @@ function MiniWorkOrderList({
     let rows =
       type === 'facility'
         ? getFacilityListOrders(facilityOrders)
-        : orders.filter((o) => o.type === type)
+        : getWorkOrderListByType(orders, type)
     if (statusFilter) rows = rows.filter((o) => o.status === statusFilter)
     return rows
   }, [orders, type, statusFilter, facilityOrders])
 
-  const statuses = MINI_TYPE_STATUS[type]
+  const statuses = MINI_LIST_FILTER_STATUS[type]
 
   return (
     <div className="mini-work-list-page">
@@ -354,6 +398,39 @@ function MiniWorkOrderList({
         ) : (
           listOrders.map((o) => <OrderCard key={o.id} order={o} onClick={() => onOpenDetail(o.id)} />)
         )}
+      </div>
+    </div>
+  )
+}
+
+function MiniCollabPage({
+  myCount,
+  onOpenMyOrders,
+}: {
+  myCount: number
+  onOpenMyOrders: () => void
+}) {
+  return (
+    <div className="mini-collab-page">
+      <div className="mini-collab-topbar">
+        <span className="mini-nav-actions">
+          <span className="mini-nav-dot">···</span>
+          <span className="mini-nav-circle">◎</span>
+        </span>
+      </div>
+      <div className="mini-collab-body">
+        <div className="mini-collab-section-title">我的服务</div>
+        <div className="mini-collab-grid">
+          <div className="mini-collab-item" onClick={onOpenMyOrders}>
+            <div className="mini-collab-icon">
+              <ServiceWorkOrderIcon size={44} />
+              {myCount > 0 && (
+                <span className="mini-wo-badge">{myCount > 99 ? '99+' : myCount}</span>
+              )}
+            </div>
+            <div className="mini-collab-label">我的工单</div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -415,40 +492,56 @@ function MiniMyWorkOrders({
   const filtered = useMemo(() => {
     let rows: MiniWorkOrder[] = []
     if (tab === 'initiated') {
-      rows = orders.filter((o) => o.initiator === MINI_CURRENT_USER && !o.archiveOnly)
+      rows = orders.filter(
+        (o) =>
+          o.initiator === MINI_CURRENT_USER &&
+          !o.archiveOnly &&
+          o.status !== MINI_CANCELLED_STATUS,
+      )
     } else if (tab === 'todo') {
       rows = orders.filter(
         (o) =>
           !o.archiveOnly &&
           o.receiver === MINI_CURRENT_USER &&
-          !['已完成', '已处理', '已关单', '已取消'].includes(o.status),
+          ![...MINI_DONE_STATUSES, MINI_CANCELLED_STATUS].includes(o.status),
       )
     } else {
       const doneOrders = orders.filter(
         (o) =>
           !o.archiveOnly &&
           o.receiver === MINI_CURRENT_USER &&
-          ['已完成', '已处理', '已关单'].includes(o.status),
+          MINI_DONE_STATUSES.includes(o.status as (typeof MINI_DONE_STATUSES)[number]),
       )
-      rows = [...myHandled, ...doneOrders]
+      const cancelledOrders = orders.filter(
+        (o) =>
+          !o.archiveOnly &&
+          o.status === MINI_CANCELLED_STATUS &&
+          (o.initiator === MINI_CURRENT_USER || o.receiver === MINI_CURRENT_USER),
+      )
+      rows = [...myHandled, ...doneOrders, ...cancelledOrders]
     }
     if (typeFilter) rows = rows.filter((o) => o.type === typeFilter)
     return rows
   }, [orders, tab, typeFilter, myHandled])
 
-  const initiatedCount = orders.filter((o) => o.initiator === MINI_CURRENT_USER && !o.archiveOnly).length
+  const initiatedCount = orders.filter(
+    (o) =>
+      o.initiator === MINI_CURRENT_USER && !o.archiveOnly && o.status !== MINI_CANCELLED_STATUS,
+  ).length
   const todoCount = orders.filter(
     (o) =>
       !o.archiveOnly &&
       o.receiver === MINI_CURRENT_USER &&
-      !['已完成', '已处理', '已关单', '已取消'].includes(o.status),
+      ![...MINI_DONE_STATUSES, MINI_CANCELLED_STATUS].includes(o.status),
   ).length
   const doneCount =
     orders.filter(
       (o) =>
         !o.archiveOnly &&
-        o.receiver === MINI_CURRENT_USER &&
-        ['已完成', '已处理', '已关单'].includes(o.status),
+        ((o.receiver === MINI_CURRENT_USER &&
+          MINI_DONE_STATUSES.includes(o.status as (typeof MINI_DONE_STATUSES)[number])) ||
+          (o.status === MINI_CANCELLED_STATUS &&
+            (o.initiator === MINI_CURRENT_USER || o.receiver === MINI_CURRENT_USER))),
     ).length + myHandled.length
 
   return (

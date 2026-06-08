@@ -1,33 +1,45 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   acceptFacilityOrder,
   cancelAcceptedFacilityOrder,
-  completeFacilityOrder,
-  damageFacilityOrder,
   dispatchFacilityOrder,
   getFacilityOrderById,
+  holdOnSiteFacilityRepair,
+  proceedFacilityRepairNextStep,
   revokeFacilityOrder,
+  startFacilityRepair,
+  saveFacilityRepairDraft,
+  submitDamageFacilityOrder,
+  submitFalseAlarmFacilityOrder,
+  submitRepairFacilityOrder,
   urgeFacilityOrder,
+  type IncidentJudgment,
 } from '../store/alarmSync'
 import { MINI_CURRENT_USER } from '../store/miniProgramUser'
 import {
   addHandledRecord,
   FACILITY_WORK_GROUPS,
   FACILITY_WORKERS,
+  facilityToMiniOrder,
   type MiniWorkOrder,
 } from '../mock/miniProgramData'
 import { EmptyDocIcon } from './MiniIcons'
 
-export type FacilityFormType = 'dispatch' | 'urge' | 'revoke' | 'cancel' | 'complete' | 'damage'
+export type FacilityFormType = 'dispatch' | 'urge' | 'revoke' | 'cancel' | 'repairing' | 'complete'
+
+const JUDGMENT_OPTIONS: IncidentJudgment[] = ['误报', '维修', '损坏']
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
   待派单: 'mini-status-pending',
   待接单: 'mini-status-wait',
   处理中: 'mini-status-processing',
+  待完成: 'mini-status-wait',
   已完成: 'mini-status-done',
   已取消: 'mini-status-cancel',
   损坏: 'mini-status-damage',
 }
+
+type PhotoItem = { id: string; name: string; preview: string }
 
 function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
   const extra = order.extra ?? {}
@@ -41,10 +53,11 @@ function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
     { label: '来源', value: extra['来源'] ?? '—' },
     { label: '发起人', value: order.initiator },
     { label: '接单人', value: order.receiver === '-' ? '—' : order.receiver },
-    { label: '中台状态', value: extra['中台状态'] ?? '—' },
   ]
   if (extra['派单工作组']) rows.push({ label: '派单工作组', value: extra['派单工作组'] })
   if (extra['派单说明']) rows.push({ label: '派单说明', value: extra['派单说明'] })
+  if (extra['到达现场时间']) rows.push({ label: '到达现场时间', value: extra['到达现场时间'] })
+  if (extra['故障原因']) rows.push({ label: '故障原因', value: extra['故障原因'] })
   if (extra['损坏说明']) rows.push({ label: '损坏说明', value: extra['损坏说明'] })
 
   return (
@@ -56,6 +69,19 @@ function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
         </div>
       ))}
     </>
+  )
+}
+
+function FlowImageGrid({ images }: { images: string[] }) {
+  if (!images.length) return null
+  return (
+    <div className="mini-flow-images">
+      {images.map((src, i) => (
+        <div key={i} className="mini-flow-image-item">
+          <img src={src} alt={`维修图片${i + 1}`} />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -82,7 +108,19 @@ function FlowTimeline({ records }: { records: MiniWorkOrder['flowRecords'] }) {
               </span>
               <span className="mini-timeline-time">{f.time}</span>
             </div>
-            {f.detail && <div className="mini-timeline-detail">{f.detail}</div>}
+            {f.fields?.length ? (
+              <div className="mini-timeline-fields">
+                {f.fields.map((field) => (
+                  <div key={field.label} className="mini-timeline-field">
+                    <span className="mini-timeline-field-label">{field.label}</span>
+                    <span className="mini-timeline-field-value">{field.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              f.detail && <div className="mini-timeline-detail">{f.detail}</div>
+            )}
+            {f.images && f.images.length > 0 && <FlowImageGrid images={f.images} />}
           </div>
         </div>
       ))}
@@ -114,19 +152,34 @@ export function MiniFacilityDetail({
     if (s === '待接单' || s === '损坏') {
       return [{ key: 'accept', label: '接单', primary: true }]
     }
+    if ((s === '处理中' || s === '待完成') && isMine && order.repairStarted) {
+      return [
+        {
+          key: 'repairing',
+          label: s === '待完成' ? '继续处理' : '继续维修',
+          form: 'repairing' as const,
+          primary: true,
+        },
+      ]
+    }
     if (s === '处理中' && isMine) {
       return [
         { key: 'cancel', label: '取消接单', form: 'cancel' as const },
-        { key: 'damage', label: '提交损坏', form: 'damage' as const },
-        { key: 'complete', label: '提交完成', form: 'complete' as const, primary: true },
+        { key: 'start', label: '开始维修', primary: true },
       ]
     }
     return []
-  }, [order.status, isMine])
+  }, [order.status, isMine, order.repairStarted])
 
   const handleAccept = () => {
     acceptFacilityOrder(order.id, MINI_CURRENT_USER)
     onRefresh()
+  }
+
+  const handleStartRepair = () => {
+    startFacilityRepair(order.id, MINI_CURRENT_USER)
+    onRefresh()
+    onOpenForm('repairing')
   }
 
   return (
@@ -153,6 +206,7 @@ export function MiniFacilityDetail({
               className={a.primary ? 'mini-footer-btn primary' : 'mini-footer-btn'}
               onClick={() => {
                 if (a.key === 'accept') handleAccept()
+                else if (a.key === 'start') handleStartRepair()
                 else if ('form' in a && a.form) onOpenForm(a.form)
               }}
             >
@@ -163,6 +217,168 @@ export function MiniFacilityDetail({
       )}
     </div>
   )
+}
+
+function PhotoUpload({
+  label,
+  photos,
+  onChange,
+  required,
+  hint,
+}: {
+  label: string
+  photos: PhotoItem[]
+  onChange: (photos: PhotoItem[]) => void
+  required?: boolean
+  hint?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files?.length) return
+    const next = [...photos]
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return
+      next.push({
+        id: `${Date.now()}-${file.name}`,
+        name: file.name,
+        preview: URL.createObjectURL(file),
+      })
+    })
+    onChange(next.slice(0, 9))
+  }
+
+  const removePhoto = (id: string) => {
+    const target = photos.find((p) => p.id === id)
+    if (target) URL.revokeObjectURL(target.preview)
+    onChange(photos.filter((p) => p.id !== id))
+  }
+
+  return (
+    <div className="mini-photo-upload">
+      <div className={`mini-form-label ${required ? 'required' : ''}`}>{label}</div>
+      <div className="mini-photo-grid">
+        {photos.map((p) => (
+          <div key={p.id} className="mini-photo-item">
+            <img src={p.preview} alt={p.name} />
+            <button type="button" className="mini-photo-remove" onClick={() => removePhoto(p.id)}>
+              ×
+            </button>
+          </div>
+        ))}
+        {photos.length < 9 && (
+          <button type="button" className="mini-photo-add" onClick={() => inputRef.current?.click()}>
+            <span className="mini-photo-add-icon">+</span>
+            <span>上传图片</span>
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="mini-photo-input"
+        onChange={(e) => {
+          handleFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      {hint && <div className="mini-form-hint">{hint}</div>}
+    </div>
+  )
+}
+
+export function MiniFacilityRepairingForm({
+  orderId,
+  onHold,
+  onNext,
+  onCancel,
+}: {
+  orderId: string
+  onHold: () => void
+  onNext: () => void
+  onCancel: () => void
+}) {
+  const facility = getFacilityOrderById(orderId)
+  const [arrivalTime, setArrivalTime] = useState('')
+  const [faultReason, setFaultReason] = useState('')
+
+  useEffect(() => {
+    const info = facility?.onSiteInfo
+    if (!info) return
+    setArrivalTime(info.arrivalTime)
+    setFaultReason(info.faultReason ?? '')
+  }, [facility?.onSiteInfo])
+
+  const handleHold = () => {
+    if (!facility) return
+    holdOnSiteFacilityRepair(orderId, MINI_CURRENT_USER, {
+      arrivalTime: arrivalTime.trim(),
+      faultReason: faultReason.trim() || undefined,
+    })
+    alert('已暂存，工单状态为待完成')
+    onHold()
+  }
+
+  const handleNext = () => {
+    if (!facility) return
+    if (!arrivalTime.trim()) return alert('请选择到达现场时间')
+    proceedFacilityRepairNextStep(orderId, MINI_CURRENT_USER, {
+      arrivalTime: arrivalTime.trim(),
+      faultReason: faultReason.trim() || undefined,
+    })
+    onNext()
+  }
+
+  return (
+    <div className="mini-form-page">
+      <div className="mini-detail-card">
+        <div className="mini-detail-card-head">
+          <span className="mini-detail-card-bar" />
+          <span className="mini-detail-card-title">维修中</span>
+        </div>
+      </div>
+      <div className="mini-detail-card mini-form-body">
+        <div className="mini-form-label required">到达现场时间</div>
+        <input
+          className="mini-form-input"
+          type="datetime-local"
+          value={arrivalTime}
+          onChange={(e) => setArrivalTime(e.target.value)}
+        />
+        <div className="mini-form-label">故障原因</div>
+        <textarea
+          className="mini-form-textarea"
+          placeholder="请填写故障原因（选填）"
+          maxLength={500}
+          value={faultReason}
+          onChange={(e) => setFaultReason(e.target.value)}
+        />
+        <div className="mini-form-count">{faultReason.length}/500</div>
+      </div>
+      <div className="mini-detail-footer mini-detail-footer-triple">
+        <button type="button" className="mini-footer-btn" onClick={onCancel}>
+          取消
+        </button>
+        <button type="button" className="mini-footer-btn" onClick={handleHold}>
+          暂存
+        </button>
+        <button type="button" className="mini-footer-btn primary" onClick={handleNext}>
+          下一步
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function draftToPhotos(draft?: { photos: string[]; photoNames: string[] }): PhotoItem[] {
+  if (!draft?.photos.length) return []
+  return draft.photos.map((preview, i) => ({
+    id: `draft-${i}`,
+    name: draft.photoNames[i] ?? `图片${i + 1}`,
+    preview,
+  }))
 }
 
 export function MiniFacilityForm({
@@ -180,15 +396,37 @@ export function MiniFacilityForm({
   const [group, setGroup] = useState<string>(FACILITY_WORK_GROUPS[0])
   const [worker, setWorker] = useState<string>(FACILITY_WORKERS[FACILITY_WORK_GROUPS[0]][0])
   const [note, setNote] = useState('')
+  const [faultReason, setFaultReason] = useState('')
   const [arrivalTime, setArrivalTime] = useState('')
+  const [judgment, setJudgment] = useState<IncidentJudgment | ''>('')
+  const [photos, setPhotos] = useState<PhotoItem[]>([])
+
+  useEffect(() => {
+    if (form !== 'complete' || !facility) return
+    const draft = facility.repairDraft
+    const onSite = facility.onSiteInfo
+    if (draft) {
+      setArrivalTime(draft.arrivalTime)
+      setFaultReason(draft.faultReason ?? onSite?.faultReason ?? '')
+      setJudgment(draft.judgment || '维修')
+      setNote(draft.note)
+      setPhotos(draftToPhotos(draft))
+      return
+    }
+    if (onSite) {
+      setArrivalTime(onSite.arrivalTime)
+      setFaultReason(onSite.faultReason ?? '')
+      setJudgment('维修')
+    }
+  }, [facility, form])
 
   const titleMap: Record<FacilityFormType, string> = {
     dispatch: '派单',
     urge: '催单',
     revoke: '撤销',
     cancel: '取消接单',
+    repairing: '维修中',
     complete: '完成',
-    damage: '提交损坏',
   }
 
   const sectionMap: Record<FacilityFormType, string> = {
@@ -196,11 +434,96 @@ export function MiniFacilityForm({
     urge: '催单提醒',
     revoke: '撤销审批',
     cancel: '取消接单',
+    repairing: '维修中',
     complete: '完成工单',
-    damage: '损坏说明',
   }
 
   const workers = FACILITY_WORKERS[group] ?? []
+  const showJudgment = form === 'complete' && !!arrivalTime.trim()
+  const fromRepairStep = !!facility?.onSiteInfo?.arrivalTime || facility?.repairDraft?.judgment === '维修'
+
+  const noteConfig = useMemo(() => {
+    if (judgment === '误报') return { label: '误报说明', required: true, placeholder: '请填写误报说明' }
+    if (judgment === '维修') return { label: '维修描述', required: true, placeholder: '请填写维修描述' }
+    if (judgment === '损坏') return { label: '损坏描述', required: true, placeholder: '请填写损坏描述' }
+    return null
+  }, [judgment])
+
+  const photoConfig = useMemo(() => {
+    if (judgment === '误报') return { label: '误报图片', required: true, hint: '必填，最多上传 9 张' }
+    if (judgment === '维修') return { label: '维修图片', required: false, hint: '选填，最多上传 9 张' }
+    if (judgment === '损坏') return { label: '损坏图片', required: true, hint: '必填，最多上传 9 张' }
+    return null
+  }, [judgment])
+
+  const buildPayload = () => ({
+    arrivalTime: arrivalTime.trim(),
+    judgment: (judgment || '维修') as IncidentJudgment,
+    note: note.trim(),
+    faultReason: faultReason.trim() || undefined,
+    photos: photos.map((p) => p.preview),
+    photoNames: photos.map((p) => p.name),
+  })
+
+  const validateBase = () => {
+    if (!arrivalTime.trim()) {
+      alert('请选择到达现场时间')
+      return false
+    }
+    if (!judgment) {
+      alert('请选择告警事故判断')
+      return false
+    }
+    return true
+  }
+
+  const validateSubmit = () => {
+    if (!validateBase()) return false
+    if (judgment === '误报') {
+      if (!note.trim()) return alert('请填写误报说明'), false
+      if (!photos.length) return alert('请上传误报图片'), false
+    }
+    if (judgment === '维修') {
+      if (!note.trim()) return alert('请填写维修描述'), false
+    }
+    if (judgment === '损坏') {
+      if (!note.trim()) return alert('请填写损坏描述'), false
+      if (!photos.length) return alert('请上传损坏图片'), false
+    }
+    return true
+  }
+
+  const handleSaveDraft = () => {
+    if (!facility || !validateBase()) return
+    saveFacilityRepairDraft(orderId, MINI_CURRENT_USER, buildPayload())
+    alert('已暂存，可稍后继续填写')
+    onDone()
+  }
+
+  const handleSubmit = () => {
+    if (!facility || !validateSubmit()) return
+    const op = MINI_CURRENT_USER
+    const payload = buildPayload()
+
+    if (judgment === '误报') {
+      submitFalseAlarmFacilityOrder(orderId, op, payload)
+    } else if (judgment === '维修') {
+      submitRepairFacilityOrder(orderId, op, payload)
+    } else if (judgment === '损坏') {
+      submitDamageFacilityOrder(orderId, op, payload)
+      addHandledRecord({
+        orderId,
+        type: 'facility',
+        action: '提交损坏',
+        title: facility.alarmDevices.join('、') + ' - ' + facility.desc,
+        time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        status: '已提交损坏',
+        detail: payload.note,
+        operator: op,
+      })
+    }
+    onDone()
+  }
 
   const handleConfirm = () => {
     if (!facility) return
@@ -228,25 +551,23 @@ export function MiniFacilityForm({
         detail: note.trim(),
         operator: op,
       })
-    } else if (form === 'complete') {
-      if (!arrivalTime.trim()) return alert('请选择到达现场时间')
-      completeFacilityOrder(orderId, op, { arrivalTime: arrivalTime.trim(), note })
-    } else if (form === 'damage') {
-      if (!note.trim()) return alert('请输入损坏说明')
-      damageFacilityOrder(orderId, op, note)
-      addHandledRecord({
-        orderId,
-        type: 'facility',
-        action: '提交损坏',
-        title: facility.alarmDevices.join('、') + ' - ' + facility.desc,
-        time: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        status: '已提交损坏',
-        detail: note.trim(),
-        operator: op,
-      })
+    } else {
+      return
     }
     onDone()
   }
+
+  const footerMode = useMemo(() => {
+    if (form !== 'complete' || !showJudgment) return 'default'
+    if (judgment === '维修') return 'repair'
+    if (judgment === '误报' || judgment === '损坏') return 'submit'
+    return 'default'
+  }, [form, showJudgment, judgment])
+
+  const reviewOrder = facility ? facilityToMiniOrder(facility) : null
+  const reviewStatusClass = reviewOrder
+    ? (STATUS_BADGE_CLASS[reviewOrder.status] ?? 'mini-status-wait')
+    : 'mini-status-wait'
 
   return (
     <div className="mini-form-page">
@@ -256,7 +577,18 @@ export function MiniFacilityForm({
           <span className="mini-detail-card-title">{sectionMap[form]}</span>
         </div>
       </div>
+      {form === 'complete' && reviewOrder && (
+        <div className="mini-detail-card">
+          <div className="mini-detail-card-head">
+            <span className="mini-detail-card-bar" />
+            <span className="mini-detail-card-title">工单信息</span>
+            <span className={`mini-status-badge ${reviewStatusClass}`}>{reviewOrder.status}</span>
+          </div>
+          <FacilityFieldRows order={reviewOrder} />
+        </div>
+      )}
       <div className="mini-detail-card mini-form-body">
+        {form === 'complete' && <div className="mini-detail-section-title">维修填报</div>}
         {form === 'dispatch' && (
           <>
             <div className="mini-form-label required">处理人员</div>
@@ -294,10 +626,10 @@ export function MiniFacilityForm({
             <div className="mini-form-count">{note.length}/500</div>
           </>
         )}
-        {(form === 'urge' || form === 'revoke' || form === 'cancel' || form === 'damage') && (
+        {(form === 'urge' || form === 'revoke' || form === 'cancel') && (
           <>
             <div className="mini-form-label required">
-              {form === 'urge' ? '催单说明' : form === 'revoke' ? '撤销说明' : form === 'cancel' ? '取消说明' : '损坏说明'}
+              {form === 'urge' ? '催单说明' : form === 'revoke' ? '撤销说明' : '取消说明'}
             </div>
             <textarea
               className="mini-form-textarea"
@@ -317,26 +649,73 @@ export function MiniFacilityForm({
               type="datetime-local"
               value={arrivalTime}
               onChange={(e) => setArrivalTime(e.target.value)}
+              readOnly={fromRepairStep && !!facility?.onSiteInfo?.arrivalTime}
             />
-            <div className="mini-form-label">维修描述</div>
-            <textarea
-              className="mini-form-textarea"
-              placeholder="维修描述"
-              maxLength={500}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <div className="mini-form-count">{note.length}/500</div>
+            {showJudgment && (
+              <>
+                <div className="mini-form-label required">告警事故判断</div>
+                <div className="mini-judgment-row">
+                  {JUDGMENT_OPTIONS.map((j) => (
+                    <button
+                      key={j}
+                      type="button"
+                      className={`mini-judgment-chip ${judgment === j ? 'active' : ''}`}
+                      onClick={() => setJudgment(j)}
+                    >
+                      {j}
+                    </button>
+                  ))}
+                </div>
+                {noteConfig && (
+                  <>
+                    <div className={`mini-form-label ${noteConfig.required ? 'required' : ''}`}>{noteConfig.label}</div>
+                    <textarea
+                      className="mini-form-textarea"
+                      placeholder={noteConfig.placeholder}
+                      maxLength={500}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                    />
+                    <div className="mini-form-count">{note.length}/500</div>
+                  </>
+                )}
+                {photoConfig && judgment && (
+                  <PhotoUpload
+                    label={photoConfig.label}
+                    photos={photos}
+                    onChange={setPhotos}
+                    required={photoConfig.required}
+                    hint={photoConfig.hint}
+                  />
+                )}
+              </>
+            )}
           </>
         )}
       </div>
-      <div className="mini-detail-footer">
+      <div
+        className={`mini-detail-footer ${
+          footerMode === 'repair' ? 'mini-detail-footer-triple' : footerMode === 'submit' ? 'mini-detail-footer-double' : ''
+        }`}
+      >
         <button type="button" className="mini-footer-btn" onClick={onCancel}>
           取消
         </button>
-        <button type="button" className="mini-footer-btn primary" onClick={handleConfirm}>
-          确定
-        </button>
+        {form === 'complete' && footerMode === 'repair' && (
+          <button type="button" className="mini-footer-btn" onClick={handleSaveDraft}>
+            暂存
+          </button>
+        )}
+        {form === 'complete' && (footerMode === 'submit' || footerMode === 'repair') && (
+          <button type="button" className="mini-footer-btn primary" onClick={handleSubmit}>
+            提交
+          </button>
+        )}
+        {form !== 'complete' && (
+          <button type="button" className="mini-footer-btn primary" onClick={handleConfirm}>
+            确定
+          </button>
+        )}
       </div>
     </div>
   )

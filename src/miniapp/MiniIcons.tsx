@@ -193,3 +193,28 @@ export function WorkOrderIcon({ type, size = 32 }: { type: MiniWorkOrderType | '
 export function getWorkOrderIconColor(type: MiniWorkOrderType | 'my') {
   return WO_ICON_COLORS[type]
 }
+
+/** 协作页：我的工单（线框列表图标） */
+export function ServiceWorkOrderIcon({ size = 40, color = '#1890ff', className }: IconProps) {
+  return (
+    <SvgWrap size={size} className={className} viewBox="0 0 48 48">
+      <rect
+        x="10"
+        y="8"
+        width="28"
+        height="32"
+        rx="3"
+        fill="none"
+        stroke={color}
+        strokeWidth="2.5"
+      />
+      <path
+        fill="none"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        d="M16 18h16M16 24h16M16 30h10"
+      />
+    </SvgWrap>
+  )
+}

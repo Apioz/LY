@@ -89,14 +89,27 @@ export const alarmRulesData: AlarmRuleItem[] = [
   },
 ]
 
-export function getKpiCards(period: 'day' | 'month' | 'year') {
-  const factor = period === 'day' ? 0.3 : period === 'year' ? 3 : 1
+export type AlarmKpiPeriod = 'day' | 'week' | 'month' | 'year'
+export type AlarmKpiRange = 'today' | 'week' | 'month'
+
+export function getKpiCards(period: AlarmKpiPeriod) {
+  const factor = period === 'day' ? 0.3 : period === 'week' ? 0.55 : period === 'year' ? 3 : 1
   return [
     { label: '待处置', value: Math.round(145 * factor) },
     { label: '处置超时', value: Math.round(75 * factor) },
     { label: '设备告警', value: Math.round(76 * factor) },
     { label: '事件上报', value: Math.round(15 * factor) },
   ]
+}
+
+/** 小程序数据页：今日 / 本周 / 本月，与中台告警统计 KPI 同源 */
+export function getKpiCardsByRange(range: AlarmKpiRange) {
+  const periodMap: Record<AlarmKpiRange, AlarmKpiPeriod> = {
+    today: 'day',
+    week: 'week',
+    month: 'month',
+  }
+  return getKpiCards(periodMap[range])
 }
 
 export function getLevelDistributionFour() {

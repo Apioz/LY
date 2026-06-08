@@ -13,6 +13,8 @@ export interface MiniFlowRecord {
   action: string
   operator: string
   detail?: string
+  fields?: { label: string; value: string }[]
+  images?: string[]
 }
 
 export interface MiniWorkOrder {
@@ -28,6 +30,8 @@ export interface MiniWorkOrder {
   extra?: Record<string, string>
   flowRecords: MiniFlowRecord[]
   facilityId?: string
+  /** 是否已开始维修（开始后不可取消接单） */
+  repairStarted?: boolean
   /** 是否仅在我的已办中展示的归档记录 */
   archiveOnly?: boolean
 }
@@ -52,8 +56,8 @@ export const MINI_TYPE_LABELS: Record<MiniWorkOrderType, string> = {
   inspection: '巡检',
 }
 
-/** 设施工单列表筛选用状态（损坏在全部中展示，不设独立筛选项） */
-export const MINI_FACILITY_LIST_STATUS = ['待派单', '待接单', '处理中', '已完成', '已取消'] as const
+/** 设施工单全部展示状态（含已取消，用于详情等） */
+export const MINI_FACILITY_LIST_STATUS = ['待派单', '待接单', '处理中', '待完成', '已完成', '已取消', '损坏'] as const
 
 export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
   repair: ['待派单', '待审核', '待接单', '报修待完成', '待签字', '待关单', '已关单', '已取消'],
@@ -61,6 +65,17 @@ export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
   maintenance: ['待派单', '待审核', '待接单', '处理中', '已完成', '已取消'],
   inspection: ['待执行', '执行中', '已完成', '已取消'],
 }
+
+/** 工单列表筛选状态（不含已取消；已取消仅在「我的已办」可见） */
+export const MINI_LIST_FILTER_STATUS: Record<MiniWorkOrderType, string[]> = {
+  repair: MINI_TYPE_STATUS.repair.filter((s) => s !== '已取消'),
+  facility: MINI_FACILITY_LIST_STATUS.filter((s) => s !== '已取消'),
+  maintenance: MINI_TYPE_STATUS.maintenance.filter((s) => s !== '已取消'),
+  inspection: MINI_TYPE_STATUS.inspection.filter((s) => s !== '已取消'),
+}
+
+export const MINI_DONE_STATUSES = ['已完成', '已处理', '已关单'] as const
+export const MINI_CANCELLED_STATUS = '已取消'
 
 export const MINI_LIST_TABS: MiniWorkOrderType[] = ['repair', 'facility', 'maintenance', 'inspection']
 
@@ -274,6 +289,7 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
     createTime: item.alarmTime,
     initiator: item.initiator ?? '系统',
     receiver: item.receiver,
+    repairStarted: !!item.repairStarted,
     description: item.damageNote ? `损坏说明：${item.damageNote}` : undefined,
     extra: {
       工单编号: item.id,
@@ -283,10 +299,13 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
       告警描述: String(item.desc),
       告警时间: item.alarmTime,
       来源: item.source,
-      中台状态: String(item.status),
       ...(item.damageNote ? { 损坏说明: item.damageNote } : {}),
       ...(item.dispatchGroup ? { 派单工作组: item.dispatchGroup } : {}),
       ...(item.dispatchNote ? { 派单说明: item.dispatchNote } : {}),
+      ...(item.onSiteInfo?.faultReason ? { 故障原因: item.onSiteInfo.faultReason } : {}),
+      ...(item.onSiteInfo?.arrivalTime
+        ? { 到达现场时间: item.onSiteInfo.arrivalTime.replace('T', ' ') }
+        : {}),
     },
     flowRecords: (item.flowRecords ?? []) as MiniFlowRecord[],
   }
@@ -320,8 +339,21 @@ export function getAllMiniOrders(facilityOrders: FacilityOrderItem[]): MiniWorkO
   return [...facilityMini, ...locals]
 }
 
+export function isVisibleInWorkOrderList(order: MiniWorkOrder) {
+  if (order.status === MINI_CANCELLED_STATUS) return false
+  if (order.type !== 'facility') return true
+  if (isFacilityInPublicPool(order)) return true
+  if (order.status === '待完成' && order.receiver === MINI_CURRENT_USER) return true
+  if (order.status === '已完成') return true
+  return false
+}
+
 export function getFacilityListOrders(facilityOrders: FacilityOrderItem[]): MiniWorkOrder[] {
-  return facilityOrders.map(facilityToMiniOrder).filter(isFacilityInPublicPool)
+  return facilityOrders.map(facilityToMiniOrder).filter(isVisibleInWorkOrderList)
+}
+
+export function getWorkOrderListByType(orders: MiniWorkOrder[], type: MiniWorkOrderType): MiniWorkOrder[] {
+  return orders.filter((o) => o.type === type && isVisibleInWorkOrderList(o))
 }
 
 export function getMiniOrderById(id: string, facilityOrders: FacilityOrderItem[]): MiniWorkOrder | undefined {
@@ -343,7 +375,9 @@ export function countByType(orders: MiniWorkOrder[], facilityOrders: FacilityOrd
       (o) =>
         o.initiator === MINI_CURRENT_USER ||
         o.receiver === MINI_CURRENT_USER ||
-        (o.type === 'facility' && o.receiver === MINI_CURRENT_USER && o.status === '处理中'),
+        (o.type === 'facility' &&
+          o.receiver === MINI_CURRENT_USER &&
+          ['处理中', '待完成'].includes(o.status)),
     ).length,
   }
 }

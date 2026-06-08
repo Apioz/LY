@@ -76,7 +76,6 @@ export default function MainLayout({ activeKey, onNavigate, children, onSwitchMo
   const [collapsed, setCollapsed] = useState(false)
   const [openTabs, setOpenTabs] = useState<{ key: MenuKey; label: string }[]>([
     { key: 'home', label: '首页' },
-    { key: 'safety-stats', label: '安全检查统计' },
   ])
 
   const handleNavigate = (key: MenuKey) => {

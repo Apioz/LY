@@ -79,7 +79,7 @@ export type AppMode = 'admin' | 'mini'
 
 export default function App() {
   const [appMode, setAppMode] = useState<AppMode>('admin')
-  const [activeKey, setActiveKey] = useState<MenuKey>('safety-stats')
+  const [activeKey, setActiveKey] = useState<MenuKey>('home')
 
   if (appMode === 'mini') {
     return <MiniProgramApp onSwitchToAdmin={() => setAppMode('admin')} />
