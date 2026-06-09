@@ -32,8 +32,7 @@ const JUDGMENT_OPTIONS: IncidentJudgment[] = ['误报', '维修', '损坏']
 const STATUS_BADGE_CLASS: Record<string, string> = {
   待派单: 'mini-status-pending',
   待接单: 'mini-status-wait',
-  处理中: 'mini-status-processing',
-  待完成: 'mini-status-wait',
+  待完成: 'mini-status-processing',
   已完成: 'mini-status-done',
   已取消: 'mini-status-cancel',
   损坏: 'mini-status-damage',
@@ -152,17 +151,17 @@ export function MiniFacilityDetail({
     if (s === '待接单' || s === '损坏') {
       return [{ key: 'accept', label: '接单', primary: true }]
     }
-    if ((s === '处理中' || s === '待完成') && isMine && order.repairStarted) {
+    if (s === '待完成' && isMine && order.repairStarted) {
       return [
         {
           key: 'repairing',
-          label: s === '待完成' ? '继续处理' : '继续维修',
+          label: '继续处理',
           form: 'repairing' as const,
           primary: true,
         },
       ]
     }
-    if (s === '处理中' && isMine) {
+    if (s === '待完成' && isMine) {
       return [
         { key: 'cancel', label: '取消接单', form: 'cancel' as const },
         { key: 'start', label: '开始维修', primary: true },

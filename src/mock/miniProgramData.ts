@@ -57,7 +57,7 @@ export const MINI_TYPE_LABELS: Record<MiniWorkOrderType, string> = {
 }
 
 /** 设施工单全部展示状态（含已取消，用于详情等） */
-export const MINI_FACILITY_LIST_STATUS = ['待派单', '待接单', '处理中', '待完成', '已完成', '已取消', '损坏'] as const
+export const MINI_FACILITY_LIST_STATUS = ['待派单', '待接单', '待完成', '已完成', '已取消', '损坏'] as const
 
 export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
   repair: ['待派单', '待审核', '待接单', '报修待完成', '待签字', '待关单', '已关单', '已取消'],
@@ -285,7 +285,7 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
     facilityId: item.id,
     type: 'facility',
     title: `${devices} - ${item.desc}`,
-    status: String(item.miniStatus),
+    status: String(item.miniStatus) === '处理中' ? '待完成' : String(item.miniStatus),
     createTime: item.alarmTime,
     initiator: item.initiator ?? '系统',
     receiver: item.receiver,
@@ -377,7 +377,7 @@ export function countByType(orders: MiniWorkOrder[], facilityOrders: FacilityOrd
         o.receiver === MINI_CURRENT_USER ||
         (o.type === 'facility' &&
           o.receiver === MINI_CURRENT_USER &&
-          ['处理中', '待完成'].includes(o.status)),
+          o.status === '待完成'),
     ).length,
   }
 }
