@@ -1,38 +1,86 @@
 export const fireDeviceStats = [
-  { label: '消防设备总数（个）', value: 128 },
-  { label: '待绑定空间数（个）', value: 12 },
-  { label: '已绑定空间数（个）', value: 116 },
+  { label: '消防设备总数（个）', value: 2 },
+  { label: '待绑定空间数（个）', value: 0 },
+  { label: '已绑定空间数（个）', value: 2 },
 ]
 
 export const monitorDeviceStats = [
-  { label: '总数', value: 460 },
+  { label: '总数', value: 150 },
   { label: '待绑定数', value: 0 },
-  { label: '已绑定数', value: 460 },
-  { label: '正常状态数', value: 460 },
+  { label: '已绑定数', value: 150 },
+  { label: '正常状态数', value: 150 },
   { label: '异常状态数', value: 0 },
 ]
 
-export const fireDeviceRows = [
+import { ALARM_DEVICE_CATEGORIES } from '../pages/alarm/constants'
+
+/** 消防设备二级子类（监测类型可选值） */
+export const FIRE_DEVICE_MONITOR_TYPES = [...ALARM_DEVICE_CATEGORIES['消防设备']] as const
+
+/** 安防监控二级子类（监测类型可选值） */
+export const MONITOR_DEVICE_MONITOR_TYPES = [...ALARM_DEVICE_CATEGORIES['安防监控']] as const
+
+export interface FireDeviceRow {
+  key: string
+  location: string
+  /** 监测类型：消防设备二级子类 */
+  monitorType: (typeof FIRE_DEVICE_MONITOR_TYPES)[number]
+  deviceType?: string
+  dockAddress?: string
+  deviceName: string
+  deviceNo: string
+  serialNo?: string
+  channelNo: string
+  registerAddress?: string
+  model?: string
+  brand?: string
+  bindStatus: string
+  monitorStatus: string
+  enableStatus: string
+}
+
+export interface MonitorDeviceRow {
+  key: string
+  location: string
+  /** 监测类型：安防监控二级子类 */
+  monitorType: (typeof MONITOR_DEVICE_MONITOR_TYPES)[number]
+  deviceType?: string
+  networkAddress?: string
+  deviceName: string
+  deviceNo: string
+  serialNo?: string
+  channelNo: string
+  registerAddress?: string
+  model?: string
+  brand?: string
+  bindStatus: string
+  monitorStatus: string
+  enableStatus: string
+}
+
+export const fireDeviceRows: FireDeviceRow[] = [
   {
     key: '1',
-    spaceCode: 'HNYHY-F001',
-    location: '东楼/1F/消控室',
-    category: '烟感',
-    deviceName: '烟感探测器-A01',
-    fireCode: 'XF202601001',
-    fireName: '一层大厅烟感',
+    location: '工程楼3F/1F/空调热水循环泵P-204机房',
+    monitorType: '烟感探测器',
+    deviceType: '消防设备',
+    deviceName: '空调热水循环泵P-204',
+    deviceNo: 'P-204',
+    channelNo: '1',
     bindStatus: '已绑定',
-    enableStatus: '已启用',
+    monitorStatus: '在线',
+    enableStatus: '未启用',
   },
   {
     key: '2',
-    spaceCode: 'HNYHY-F002',
-    location: '东楼/B1F/消防泵房',
-    category: '消防主机',
-    deviceName: '消防报警主机',
-    fireCode: 'XF202601002',
-    fireName: 'B1F消防主机',
-    bindStatus: '待绑定',
+    location: '工程楼2F/消防控制室/主机机柜',
+    monitorType: '消防主机',
+    deviceType: '消防设备',
+    deviceName: '火灾报警控制器',
+    deviceNo: 'FAC-001',
+    channelNo: '1',
+    bindStatus: '已绑定',
+    monitorStatus: '在线',
     enableStatus: '未启用',
   },
 ]
@@ -41,45 +89,94 @@ export const fireEventAlarmRows = [
   {
     key: '1',
     time: '2026-06-03 10:15:22',
-    fireCode: 'XF202601001',
-    fireName: '一层大厅烟感',
+    fireCode: 'P-204',
+    fireName: '空调热水循环泵P-204',
     alarmType: '火灾报警',
   },
   {
     key: '2',
     time: '2026-06-02 14:30:11',
-    fireCode: 'XF202601002',
-    fireName: 'B1F消防主机',
+    fireCode: 'FAC-001',
+    fireName: '火灾报警控制器',
     alarmType: '故障报警',
   },
 ]
 
-export const monitorDeviceRows = [
+export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '1',
-    spaceCode: 'HNYHY-E001',
-    location: '东楼/1F/东楼外侧南大门入口3',
-    assetCode: 'HNYHY-E001',
-    assetName: '1080P智能半球',
-    deviceNo: '34020000001320000001',
-    deviceName: '东楼1层南大门入口3',
+    location: '研发实验室5A/1F/南侧大门入口',
+    monitorType: '监控摄像头',
+    deviceType: '安防监控',
+    deviceName: 'Camera-SKJ-001',
+    deviceNo: 'SZ-007_SZ-007',
+    serialNo: 'SZ-007',
+    channelNo: '1',
+    registerAddress: '192.168.20.204',
+    brand: '海康',
+    bindStatus: '已绑定',
     monitorStatus: '正常',
     enableStatus: '未启用',
-    protocol: 'API',
-    brand: '海康',
   },
   {
     key: '2',
-    spaceCode: 'HNYHY-E002',
-    location: '东楼/1F/门卫消控室',
-    assetCode: 'HNYHY-E002',
-    assetName: '人脸识别半球',
-    deviceNo: '34020000001320000002',
-    deviceName: '东楼1层门卫消控室',
+    location: '研发实验室5A/1F/4号与5号电梯厅中间',
+    monitorType: '监控摄像头',
+    deviceType: '安防监控',
+    deviceName: '4号与5号电梯厅中间半球',
+    deviceNo: 'SZ-008_SZ-008',
+    serialNo: 'SZ-008',
+    channelNo: '1',
+    registerAddress: '192.168.20.205',
+    brand: '海康',
+    bindStatus: '已绑定',
     monitorStatus: '正常',
     enableStatus: '未启用',
-    protocol: 'API',
+  },
+  {
+    key: '3',
+    location: '双翼大厦/1F/主入口门厅',
+    monitorType: '门禁系统',
+    deviceType: '安防监控',
+    deviceName: '主入口门禁摄像头',
+    deviceNo: 'SZ-009_SZ-009',
+    serialNo: 'SZ-009',
+    channelNo: '2',
+    registerAddress: '192.168.20.206',
     brand: '海康',
+    bindStatus: '已绑定',
+    monitorStatus: '正常',
+    enableStatus: '未启用',
+  },
+  {
+    key: '4',
+    location: '森林湾大厦/B1F/车库通道A',
+    monitorType: '监控摄像头',
+    deviceType: '安防监控',
+    deviceName: '车库通道枪机-A12',
+    deviceNo: 'SZ-010_SZ-010',
+    serialNo: 'SZ-010',
+    channelNo: '1',
+    registerAddress: '192.168.20.207',
+    brand: '大华',
+    bindStatus: '已绑定',
+    monitorStatus: '正常',
+    enableStatus: '未启用',
+  },
+  {
+    key: '5',
+    location: '中期大厦/屋顶/设备平台西侧',
+    monitorType: '监控摄像头',
+    deviceType: '安防监控',
+    deviceName: '屋顶监控云台',
+    deviceNo: 'SZ-011_SZ-011',
+    serialNo: 'SZ-011',
+    channelNo: '1',
+    registerAddress: '192.168.20.208',
+    brand: '海康',
+    bindStatus: '已绑定',
+    monitorStatus: '正常',
+    enableStatus: '未启用',
   },
 ]
 

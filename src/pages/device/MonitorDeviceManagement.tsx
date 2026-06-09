@@ -6,28 +6,110 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ReloadOutlined,
+  ColumnHeightOutlined,
+  FullscreenOutlined,
 } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
-import { monitorDeviceStats, monitorDeviceRows } from '../../mock/deviceData'
+import { monitorDeviceStats, monitorDeviceRows, MONITOR_DEVICE_MONITOR_TYPES } from '../../mock/deviceData'
+
+const COL_WIDTH = 120
+
+function renderCell(v?: string) {
+  return v?.trim() ? v : '—'
+}
 
 export default function MonitorDeviceManagement() {
   const [selected, setSelected] = useState<React.Key[]>([])
 
   const columns = [
-    { title: '#', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
-    { title: '空间编码', dataIndex: 'spaceCode', width: 110 },
-    { title: '安装位置', dataIndex: 'location', ellipsis: true, width: 180 },
-    { title: '资产编码', dataIndex: 'assetCode', width: 110 },
-    { title: '资产名称', dataIndex: 'assetName', width: 120 },
-    { title: '设备编号', dataIndex: 'deviceNo', width: 160, ellipsis: true },
-    { title: '设备名称', dataIndex: 'deviceName', ellipsis: true, width: 160 },
-    { title: '监测状态', dataIndex: 'monitorStatus', width: 80 },
-    { title: '启用状态', dataIndex: 'enableStatus', width: 80 },
-    { title: '协议类型', dataIndex: 'protocol', width: 80 },
-    { title: '品牌', dataIndex: 'brand', width: 80 },
+    { title: '#', width: 50, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
+    {
+      title: '安装位置',
+      dataIndex: 'location',
+      width: 200,
+      ellipsis: true,
+    },
+    {
+      title: '监测类型',
+      dataIndex: 'monitorType',
+      width: 110,
+      align: 'center' as const,
+    },
+    {
+      title: '设备类型',
+      dataIndex: 'deviceType',
+      width: COL_WIDTH,
+      render: renderCell,
+    },
+    {
+      title: '网络地址',
+      dataIndex: 'networkAddress',
+      width: COL_WIDTH,
+      render: renderCell,
+    },
+    {
+      title: '设备名称',
+      dataIndex: 'deviceName',
+      width: 180,
+      ellipsis: true,
+    },
+    {
+      title: '设备编号',
+      dataIndex: 'deviceNo',
+      width: 150,
+      ellipsis: true,
+    },
+    {
+      title: '序列号/SN',
+      dataIndex: 'serialNo',
+      width: COL_WIDTH,
+      render: renderCell,
+    },
+    {
+      title: '通道号',
+      dataIndex: 'channelNo',
+      width: 80,
+      align: 'center' as const,
+    },
+    {
+      title: '寄存器地址',
+      dataIndex: 'registerAddress',
+      width: 140,
+      render: renderCell,
+    },
+    {
+      title: '型号',
+      dataIndex: 'model',
+      width: COL_WIDTH,
+      render: renderCell,
+    },
+    {
+      title: '品牌',
+      dataIndex: 'brand',
+      width: 90,
+      render: renderCell,
+    },
+    {
+      title: '绑定状态',
+      dataIndex: 'bindStatus',
+      width: 90,
+      align: 'center' as const,
+    },
+    {
+      title: '监测状态',
+      dataIndex: 'monitorStatus',
+      width: 90,
+      align: 'center' as const,
+    },
+    {
+      title: '启用状态',
+      dataIndex: 'enableStatus',
+      width: 90,
+      align: 'center' as const,
+    },
     {
       title: '操作',
-      width: 280,
+      width: 300,
       fixed: 'right' as const,
       render: () => (
         <Space size={4} wrap>
@@ -52,36 +134,70 @@ export default function MonitorDeviceManagement() {
           </Col>
         ))}
       </Row>
-      <SearchBar onSearch={() => {}} onClear={() => {}}>
+      <SearchBar onSearch={() => {}} onReset={() => {}} resetLabel="重置">
         <Space wrap>
           <span>空间位置：</span>
-          <Select placeholder="请选择 空间位置" style={{ width: 160 }} allowClear />
+          <Select placeholder="请选择空间位置" style={{ width: 160 }} allowClear />
           <span>设备名称：</span>
-          <Input placeholder="请输入 设备名称" style={{ width: 160 }} />
+          <Input placeholder="请输入设备名称" style={{ width: 160 }} allowClear />
           <span>监测状态：</span>
-          <Select placeholder="请选择 监测状态" style={{ width: 160 }} allowClear options={[{ value: '正常' }, { value: '异常' }]} />
+          <Select
+            placeholder="请选择监测状态"
+            style={{ width: 160 }}
+            allowClear
+            options={[
+              { value: '正常', label: '正常' },
+              { value: '异常', label: '异常' },
+            ]}
+          />
+          <span>监测类型：</span>
+          <Select
+            placeholder="请选择监测类型"
+            style={{ width: 160 }}
+            allowClear
+            options={MONITOR_DEVICE_MONITOR_TYPES.map((v) => ({ value: v, label: v }))}
+          />
+          <Button type="link" style={{ padding: 0 }}>
+            展开
+          </Button>
         </Space>
       </SearchBar>
-      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Space>
           <Button type="primary" icon={<PlusOutlined />}>
             新增
           </Button>
-          <Button icon={<CheckCircleOutlined />}>确认启用</Button>
-          <Button icon={<CloseCircleOutlined />}>取消启用</Button>
+          <Button type="primary" icon={<CheckCircleOutlined />}>
+            确认启用
+          </Button>
+          <Button type="primary" icon={<CloseCircleOutlined />}>
+            取消启用
+          </Button>
           <Button icon={<ExportOutlined />} style={{ color: '#fa8c16', borderColor: '#fa8c16' }}>
             导出
           </Button>
         </Space>
-        <Button type="text" icon={<ReloadOutlined />} />
+        <Space>
+          <Button type="text" icon={<ReloadOutlined />} />
+          <Button type="text" icon={<ColumnHeightOutlined />} />
+          <Button type="text" icon={<FullscreenOutlined />} />
+        </Space>
       </div>
       <Table
         rowKey="key"
-        scroll={{ x: 1600 }}
+        tableLayout="fixed"
+        scroll={{ x: COL_WIDTH * 10 + 810 }}
         columns={columns}
         dataSource={monitorDeviceRows}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
-        pagination={{ total: 460, showSizeChanger: true, showTotal: (t) => `共 ${t} 条`, pageSize: 20 }}
+        pagination={{
+          total: 150,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (t) => `共 ${t} 条`,
+          pageSize: 20,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
         style={{ padding: '0 16px 16px' }}
       />
     </>

@@ -1,7 +1,71 @@
 import type { AlarmListItem } from '../mock/alarmData'
-import { DEFAULT_TIMEOUT_MINUTES } from '../pages/alarm/constants'
-import type { AlarmLevel } from '../pages/alarm/constants'
-import type { AlarmDescType } from '../pages/alarm/constants'
+import {
+  ALARM_FACILITY_SYNC_DEVICES,
+  ALARM_LEVELS,
+  DEFAULT_TIMEOUT_MINUTES,
+  type AlarmDescType,
+  type AlarmLevel,
+} from '../pages/alarm/constants'
+
+/** 告警同步设施工单：可生成的等级与设备范围 */
+export interface AlarmFacilitySyncSettings {
+  levels: AlarmLevel[]
+  devices: string[]
+}
+
+const defaultAlarmFacilitySyncSettings: AlarmFacilitySyncSettings = {
+  levels: [...ALARM_LEVELS],
+  devices: [...ALARM_FACILITY_SYNC_DEVICES],
+}
+
+const allowedFacilitySyncDevices = new Set<string>(ALARM_FACILITY_SYNC_DEVICES)
+
+let alarmFacilitySyncSettings: AlarmFacilitySyncSettings = {
+  levels: [...defaultAlarmFacilitySyncSettings.levels],
+  devices: [...defaultAlarmFacilitySyncSettings.devices],
+}
+
+const alarmFacilitySyncListeners = new Set<() => void>()
+
+function notifyAlarmFacilitySyncSettings() {
+  alarmFacilitySyncListeners.forEach((fn) => fn())
+}
+
+export function getAlarmFacilitySyncSettings(): AlarmFacilitySyncSettings {
+  return {
+    levels: [...alarmFacilitySyncSettings.levels],
+    devices: alarmFacilitySyncSettings.devices.filter((d) => allowedFacilitySyncDevices.has(d)),
+  }
+}
+
+export function updateAlarmFacilitySyncSettings(settings: AlarmFacilitySyncSettings) {
+  alarmFacilitySyncSettings = {
+    levels: [...settings.levels],
+    devices: settings.devices.filter((d) => allowedFacilitySyncDevices.has(d)),
+  }
+  notifyAlarmFacilitySyncSettings()
+}
+
+export function subscribeAlarmFacilitySyncSettings(listener: () => void) {
+  alarmFacilitySyncListeners.add(listener)
+  return () => {
+    alarmFacilitySyncListeners.delete(listener)
+  }
+}
+
+/** 告警是否满足「生成设施工单」配置（等级 + 至少一个设备命中） */
+export function isAlarmEligibleForFacilitySync(
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
+  settings: AlarmFacilitySyncSettings = getAlarmFacilitySyncSettings(),
+) {
+  if (!settings.levels.includes(alarm.level)) return false
+  const devices = alarm.alarmDevices ?? []
+  return devices.some((d) => settings.devices.includes(d))
+}
+
+export function getFacilityOrderByAlarmId(alarmId: string) {
+  return facilityOrders.find((o) => o.alarmId === alarmId)
+}
 
 /** 中台设施工单状态 */
 export const FACILITY_ORDER_STATUS = ['待处理', '处理中', '已处理', '损坏'] as const
@@ -540,8 +604,9 @@ function notifyFacility() {
   facilityListeners.forEach((fn) => fn())
 }
 
-export function syncAlarmToFacility(alarm: AlarmListItem) {
-  if (facilityOrders.some((o) => o.alarmId === alarm.id)) return
+export function syncAlarmToFacility(alarm: AlarmListItem): boolean {
+  if (!isAlarmEligibleForFacilitySync(alarm)) return false
+  if (facilityOrders.some((o) => o.alarmId === alarm.id)) return false
   const flow: FacilityFlowRecord[] = [
     {
       time: alarm.time,
@@ -570,6 +635,17 @@ export function syncAlarmToFacility(alarm: AlarmListItem) {
     ...facilityOrders,
   ]
   notifyFacility()
+  return true
+}
+
+/** 对告警列表中「待处理」且符合设置的记录尝试生成设施工单 */
+export function syncEligibleAlarmsToFacility(alarms: AlarmListItem[]) {
+  let created = 0
+  alarms.forEach((alarm) => {
+    if (alarm.status !== '待处理') return
+    if (syncAlarmToFacility(alarm)) created += 1
+  })
+  return created
 }
 
 export function closeFacilityByAlarm(alarmId: string) {

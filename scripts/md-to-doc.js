@@ -6,8 +6,9 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const mdPath = path.join(__dirname, '../docs/PRD-告警中心.md')
-const outPath = path.join(__dirname, '../docs/PRD-告警中心.doc')
+const input = process.argv[2] || 'PRD-告警中心与设施工单'
+const mdPath = path.join(__dirname, `../docs/${input}.md`)
+const outPath = path.join(__dirname, `../docs/${input}.doc`)
 
 const md = fs.readFileSync(mdPath, 'utf8')
 
@@ -89,7 +90,7 @@ xmlns="http://www.w3.org/TR/REC-html40">
 <meta charset="utf-8">
 <meta name="ProgId" content="Word.Document">
 <meta name="Generator" content="Microsoft Word">
-<title>告警中心模块PRD</title>
+<title>告警中心与设施工单PRD</title>
 <!--[if gte mso 9]><xml>
 <w:WordDocument><w:View>Print</w:View></w:WordDocument>
 </xml><![endif]-->

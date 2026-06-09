@@ -1,9 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Table, Select, Space, DatePicker, Tag, Modal, Descriptions, message, Button } from 'antd'
+import { SettingOutlined } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
 import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
-import { closeFacilityByAlarm } from '../../store/alarmSync'
+import AlarmFacilitySyncSettingsModal from './AlarmFacilitySyncSettings'
+import {
+  closeFacilityByAlarm,
+  getFacilityOrderByAlarmId,
+  isAlarmEligibleForFacilitySync,
+  subscribeAlarmFacilitySyncSettings,
+  syncEligibleAlarmsToFacility,
+} from '../../store/alarmSync'
+
+function facilityOrderLabel(alarm: AlarmListItem) {
+  const order = getFacilityOrderByAlarmId(alarm.id)
+  if (order) return `${order.id}（告警同步）`
+  if (isAlarmEligibleForFacilitySync(alarm)) return '符合设置条件，待处理时将自动生成'
+  return '—（不在设施工单生成范围）'
+}
 
 export default function AlarmList() {
   const [data, setData] = useState<AlarmListItem[]>(alarmListData)
@@ -11,6 +26,21 @@ export default function AlarmList() {
   const [statusFilter, setStatusFilter] = useState<string>()
   const [descFilter, setDescFilter] = useState<string>()
   const [detail, setDetail] = useState<AlarmListItem | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const runFacilitySync = (alarms: AlarmListItem[], notify = false) => {
+    const created = syncEligibleAlarmsToFacility(alarms)
+    if (notify && created > 0) {
+      message.info(`已根据设置新生成 ${created} 条设施工单`)
+    }
+    return created
+  }
+
+  useEffect(() => {
+    runFacilitySync(data)
+  }, [])
+
+  useEffect(() => subscribeAlarmFacilitySyncSettings(() => runFacilitySync(data)), [data])
 
   const filtered = data.filter((r) => {
     if (levelFilter && r.level !== levelFilter) return false
@@ -127,6 +157,18 @@ export default function AlarmList() {
           <DatePicker.RangePicker />
         </Space>
       </SearchBar>
+      <div
+        style={{
+          padding: '8px 16px',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          borderBottom: '1px solid #f0f0f0',
+        }}
+      >
+        <Button type="default" icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
+          告警信息设置
+        </Button>
+      </div>
       <Table
         rowKey="id"
         columns={columns}
@@ -134,6 +176,11 @@ export default function AlarmList() {
         scroll={{ x: 1480 }}
         pagination={{ showTotal: (t) => `共 ${t} 条`, pageSize: 10, showSizeChanger: true }}
         style={{ padding: 16 }}
+      />
+      <AlarmFacilitySyncSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={() => runFacilitySync(data, true)}
       />
       <Modal
         title="告警详情"
@@ -156,11 +203,7 @@ export default function AlarmList() {
             </Descriptions.Item>
             <Descriptions.Item label="告警时间">{detail.time}</Descriptions.Item>
             <Descriptions.Item label="解除告警时间">{detail.releaseTime || '-'}</Descriptions.Item>
-            <Descriptions.Item label="设施工单">
-              {detail.desc === '设备超时' || detail.status === '待处理'
-                ? `SG-${detail.id}（告警同步）`
-                : '—'}
-            </Descriptions.Item>
+            <Descriptions.Item label="设施工单">{facilityOrderLabel(detail)}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

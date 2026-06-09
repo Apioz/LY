@@ -22,6 +22,16 @@ export const ALARM_DEVICE_CASCADER_OPTIONS = Object.entries(ALARM_DEVICE_CATEGOR
 /** 全部设备名称（扁平列表，供筛选等使用） */
 export const ALARM_DEVICES = Object.values(ALARM_DEVICE_CATEGORIES).flat() as readonly string[]
 
+/** 告警信息设置：可生成设施工单的设备类别（仅消防设备、安防监控） */
+export const ALARM_FACILITY_SYNC_DEVICE_CATEGORIES: Record<string, readonly string[]> = {
+  消防设备: ALARM_DEVICE_CATEGORIES['消防设备'],
+  安防监控: ALARM_DEVICE_CATEGORIES['安防监控'],
+}
+
+export const ALARM_FACILITY_SYNC_DEVICES = Object.values(
+  ALARM_FACILITY_SYNC_DEVICE_CATEGORIES,
+).flat() as readonly string[]
+
 export function findDeviceCategory(deviceName: string): string | undefined {
   return Object.entries(ALARM_DEVICE_CATEGORIES).find(([, devices]) =>
     devices.includes(deviceName),
