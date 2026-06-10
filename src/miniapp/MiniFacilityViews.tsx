@@ -59,13 +59,28 @@ function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
   if (extra['误报说明']) rows.push({ label: '误报说明', value: extra['误报说明'] })
   if (extra['维修描述']) rows.push({ label: '维修描述', value: extra['维修描述'] })
   if (extra['损坏描述']) rows.push({ label: '损坏描述', value: extra['损坏描述'] })
+  if (extra['时效状态']) {
+    rows.push({
+      label: '时效状态',
+      value: extra['时效状态'],
+    })
+  }
 
   return (
     <>
       {rows.map((r) => (
         <div key={r.label} className="mini-detail-kv">
           <span className="mini-detail-kv-label">{r.label}</span>
-          <span className="mini-detail-kv-value">{r.value}</span>
+          <span
+            className="mini-detail-kv-value"
+            style={
+              r.label === '时效状态'
+                ? { color: extra['时效颜色'] ?? '#52c41a', fontWeight: 600 }
+                : undefined
+            }
+          >
+            {r.value}
+          </span>
         </div>
       ))}
     </>

@@ -21,55 +21,111 @@ export function getAlarmElapsedMinutes(time: string, now = Date.now()) {
   return Math.max(0, Math.floor(diff / 60000))
 }
 
-/** 按告警设备与等级匹配告警设置规则 */
+function findRuleByDeviceAndLevel(
+  device: string,
+  level: AlarmListItem['level'],
+  rules: AlarmDeviceRule2[],
+) {
+  const mapped = ALARM_DEVICE_TO_SETTINGS_SUB[device]
+  if (!mapped) return undefined
+  return rules.find(
+    (r) =>
+      r.rootCategory === mapped.rootCategory &&
+      r.subCategory === mapped.subCategory &&
+      r.level === level,
+  )
+}
+
+/** 按告警设备与等级匹配告警设置规则（不论是否生成工单） */
 export function findMatchingAlarmRule(
   alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
   rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
 ): AlarmDeviceRule2 | undefined {
-  const devices = alarm.alarmDevices ?? []
-  for (const device of devices) {
-    const mapped = ALARM_DEVICE_TO_SETTINGS_SUB[device]
-    if (!mapped) continue
-    const rule = rules.find(
-      (r) =>
-        r.rootCategory === mapped.rootCategory &&
-        r.subCategory === mapped.subCategory &&
-        r.level === alarm.level,
-    )
+  for (const device of alarm.alarmDevices ?? []) {
+    const rule = findRuleByDeviceAndLevel(device, alarm.level, rules)
     if (rule) return rule
   }
   return undefined
 }
 
-/** 是否存在匹配规则且已开启工单生成 */
-export function isAlarmEligibleForFacilitySync(alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>) {
-  const rule = findMatchingAlarmRule(alarm)
-  return !!rule?.generateWorkOrder
+/** 匹配已开启「是否生成工单」的规则（任一告警设备命中即可） */
+export function findWorkOrderGenerationRule(
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
+  rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
+): AlarmDeviceRule2 | undefined {
+  for (const device of alarm.alarmDevices ?? []) {
+    const rule = findRuleByDeviceAndLevel(device, alarm.level, rules)
+    if (rule?.generateWorkOrder) return rule
+  }
+  return undefined
 }
 
-/** 是否已达到规则设定的延迟时长，可生成设施工单 */
-export function isAlarmReadyForFacilitySync(
+export function getFacilityWorkOrderDelayMinutes(
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
+  rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
+) {
+  const rule = findWorkOrderGenerationRule(alarm, rules)
+  if (!rule) return undefined
+  return rule.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
+}
+
+/** 距工单生成时机还剩多少分钟（未开启生成或无规则时返回 undefined） */
+export function getAlarmWorkOrderSyncRemainMinutes(
   alarm: Pick<AlarmListItem, 'level' | 'alarmDevices' | 'time'>,
 ) {
-  const rule = findMatchingAlarmRule(alarm)
-  if (!rule?.generateWorkOrder) return false
+  const delay = getFacilityWorkOrderDelayMinutes(alarm)
+  if (delay === undefined) return undefined
+  const elapsed = getAlarmElapsedMinutes(alarm.time)
+  return Math.max(0, delay - elapsed)
+}
+
+/**
+ * 是否满足自动生成设施工单：
+ * 1. 告警状态为待处理
+ * 2. 告警设备在告警设置中配置「是否生成工单」= 是
+ * 3. 告警产生时长已达到该设备配置的工单生成时机
+ */
+export function shouldSyncAlarmToFacility(alarm: AlarmListItem) {
+  if (alarm.status !== '待处理') return false
+  const rule = findWorkOrderGenerationRule(alarm)
+  if (!rule) return false
   const delay = rule.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
   return getAlarmElapsedMinutes(alarm.time) >= delay
 }
 
-export function getFacilityWorkOrderDelayMinutes(alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>) {
-  const rule = findMatchingAlarmRule(alarm)
-  if (!rule?.generateWorkOrder) return undefined
-  return rule.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
+/** @deprecated 使用 shouldSyncAlarmToFacility */
+export function isAlarmEligibleForFacilitySync(alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>) {
+  return !!findWorkOrderGenerationRule(alarm)
+}
+
+/** @deprecated 使用 shouldSyncAlarmToFacility */
+export function isAlarmReadyForFacilitySync(
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices' | 'time' | 'status'>,
+) {
+  if (alarm.status !== '待处理') return false
+  const rule = findWorkOrderGenerationRule(alarm)
+  if (!rule) return false
+  const delay = rule.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
+  return getAlarmElapsedMinutes(alarm.time) >= delay
 }
 
 export function getFacilityOrderByAlarmId(alarmId: string) {
   return facilityOrders.find((o) => o.alarmId === alarmId)
 }
 
-/** 中台设施工单状态 */
-export const FACILITY_ORDER_STATUS = ['待处理', '处理中', '已处理', '损坏'] as const
+/** 中台设施工单展示状态（含超时/逾期衍生状态） */
+export const FACILITY_ORDER_STATUS = [
+  '待处理',
+  '超时待处理',
+  '处理中',
+  '逾期处理中',
+  '已处理',
+  '损坏',
+] as const
 export type FacilityOrderStatus = (typeof FACILITY_ORDER_STATUS)[number]
+
+/** 中台存储的基础状态（由小程序状态映射，不含 SLA 衍生状态） */
+export type FacilityOrderBaseStatus = '待处理' | '处理中' | '已处理' | '损坏'
 
 /** 小程序设施工单展示状态 */
 export const MINI_FACILITY_STATUS = ['待派单', '待接单', '待完成', '已完成', '已取消', '损坏'] as const
@@ -137,6 +193,8 @@ export interface FacilityOrderItem {
   repairStarted?: boolean
   /** 维修中页面填写的到场信息 */
   onSiteInfo?: FacilityOnSiteInfo
+  /** 接单时间（用于完成逾期计算） */
+  acceptedAt?: string
 }
 
 function nowStr() {
@@ -179,7 +237,7 @@ export function getFacilitySubmitNote(
   return undefined
 }
 
-export function platformStatusFromMini(mini: MiniFacilityStatus | string): FacilityOrderStatus {
+export function platformStatusFromMini(mini: MiniFacilityStatus | string): FacilityOrderBaseStatus {
   if (mini === '待派单' || mini === '待接单' || mini === '已取消') return '待处理'
   if (mini === '处理中' || mini === '待完成') return '处理中'
   if (mini === '已完成') return '已处理'
@@ -512,6 +570,7 @@ const initialFacility: FacilityOrderItem[] = [
     status: '处理中',
     miniStatus: '待完成',
     receiver: '王运维',
+    acceptedAt: '2026-06-01 09:50:00',
     source: '告警同步',
     alarmId: 'AL20260601002',
     initiator: '系统',
@@ -634,7 +693,7 @@ function notifyFacility() {
 }
 
 export function syncAlarmToFacility(alarm: AlarmListItem): boolean {
-  if (!isAlarmReadyForFacilitySync(alarm)) return false
+  if (!shouldSyncAlarmToFacility(alarm)) return false
   if (facilityOrders.some((o) => o.alarmId === alarm.id)) return false
   const flow: FacilityFlowRecord[] = [
     {
@@ -667,11 +726,10 @@ export function syncAlarmToFacility(alarm: AlarmListItem): boolean {
   return true
 }
 
-/** 对告警列表中「待处理」且符合设置的记录尝试生成设施工单 */
+/** 扫描告警列表：仅待处理 + 设备已开启生成工单 + 已到生成时机 → 生成设施工单 */
 export function syncEligibleAlarmsToFacility(alarms: AlarmListItem[]) {
   let created = 0
   alarms.forEach((alarm) => {
-    if (alarm.status !== '待处理') return
     if (syncAlarmToFacility(alarm)) created += 1
   })
   return created
@@ -768,13 +826,15 @@ export function acceptFacilityOrder(orderId: string, receiver: string) {
   facilityOrders = facilityOrders.map((o) => {
     if (o.id !== orderId) return o
     if (o.miniStatus !== '待接单' && o.miniStatus !== '损坏') return o
+    const acceptedAt = nowStr()
     return normalizeOrder({
       ...o,
       miniStatus: '待完成',
       receiver,
+      acceptedAt,
       flowRecords: appendMergedFlow(o.flowRecords, '维修人员接单', receiver, [
         { label: '工单状态', value: '待完成' },
-      ]),
+      ], undefined, acceptedAt),
     })
   })
   notifyFacility()
@@ -805,6 +865,7 @@ export function cancelAcceptedFacilityOrder(orderId: string, receiver: string, r
       ...o,
       miniStatus: '待接单',
       receiver: '-',
+      acceptedAt: undefined,
       repairDraft: undefined,
       flowRecords: appendMergedFlow(o.flowRecords, '[取消接单]', receiver, [
         { label: '取消说明', value: reason.trim() },
@@ -1035,4 +1096,152 @@ export function formatThresholdDisplay(thresholdMode: ThresholdMode, customMinut
     return `设备离线超过${minutes}分钟（设备超时报警）`
   }
   return '无'
+}
+
+const MS_PER_DAY = 86400000
+
+export interface FacilityWorkOrderSettings {
+  /** 工单生成后多少天未处理（未接单）算超时 */
+  unhandledTimeoutDays: number
+  /** 接单后多少天未完成算逾期 */
+  completionOverdueDays: number
+}
+
+const DEFAULT_FACILITY_WORK_ORDER_SETTINGS: FacilityWorkOrderSettings = {
+  unhandledTimeoutDays: 3,
+  completionOverdueDays: 7,
+}
+
+let facilityWorkOrderSettings: FacilityWorkOrderSettings = {
+  ...DEFAULT_FACILITY_WORK_ORDER_SETTINGS,
+}
+const facilitySettingsListeners = new Set<() => void>()
+
+export function getFacilityWorkOrderSettings() {
+  return { ...facilityWorkOrderSettings }
+}
+
+export function updateFacilityWorkOrderSettings(patch: Partial<FacilityWorkOrderSettings>) {
+  facilityWorkOrderSettings = { ...facilityWorkOrderSettings, ...patch }
+  facilitySettingsListeners.forEach((fn) => fn())
+}
+
+export function subscribeFacilityWorkOrderSettings(listener: () => void) {
+  facilitySettingsListeners.add(listener)
+  return () => {
+    facilitySettingsListeners.delete(listener)
+  }
+}
+
+export type FacilitySlaColor = 'green' | 'red' | 'orange' | 'default'
+export type FacilitySlaState = 'remaining' | 'timeout' | 'overdue' | 'none'
+
+export interface FacilitySlaView {
+  state: FacilitySlaState
+  days: number
+  label: string
+  color: FacilitySlaColor
+  displayStatus: FacilityOrderStatus
+}
+
+function isMiniUnaccepted(mini: string) {
+  return mini === '待派单' || mini === '待接单'
+}
+
+function inferAcceptedAt(order: FacilityOrderItem): string | undefined {
+  if (order.acceptedAt) return order.acceptedAt
+  const records = order.flowRecords
+  if (!records?.length) return undefined
+  for (let i = records.length - 1; i >= 0; i--) {
+    if (records[i].action === '维修人员接单') return records[i].time
+  }
+  return undefined
+}
+
+/** 按工单设置计算展示状态与剩余/超时/逾期天数（不改变存储状态） */
+export function resolveFacilitySla(
+  order: FacilityOrderItem,
+  settings: FacilityWorkOrderSettings = getFacilityWorkOrderSettings(),
+  now = Date.now(),
+): FacilitySlaView {
+  const mini = String(order.miniStatus)
+  const base = platformStatusFromMini(mini)
+
+  if (mini === '已完成' || mini === '已取消' || mini === '损坏') {
+    return { state: 'none', days: 0, label: '—', color: 'default', displayStatus: base }
+  }
+
+  if (isMiniUnaccepted(mini)) {
+    const created = parseAlarmTimeMs(order.alarmTime)
+    const deadline = created + settings.unhandledTimeoutDays * MS_PER_DAY
+    if (now > deadline) {
+      const days = Math.max(1, Math.ceil((now - deadline) / MS_PER_DAY))
+      return {
+        state: 'timeout',
+        days,
+        label: `已超时${days}天`,
+        color: 'red',
+        displayStatus: '超时待处理',
+      }
+    }
+    const days = Math.max(0, Math.ceil((deadline - now) / MS_PER_DAY))
+    return {
+      state: 'remaining',
+      days,
+      label: `剩余${days}天`,
+      color: 'green',
+      displayStatus: '待处理',
+    }
+  }
+
+  if (isFacilityRepairingStatus(mini)) {
+    const acceptedAt = inferAcceptedAt(order) ?? order.alarmTime
+    const accepted = parseAlarmTimeMs(acceptedAt)
+    const deadline = accepted + settings.completionOverdueDays * MS_PER_DAY
+    if (now > deadline) {
+      const days = Math.max(1, Math.ceil((now - deadline) / MS_PER_DAY))
+      return {
+        state: 'overdue',
+        days,
+        label: `已逾期${days}天`,
+        color: 'orange',
+        displayStatus: '逾期处理中',
+      }
+    }
+    const days = Math.max(0, Math.ceil((deadline - now) / MS_PER_DAY))
+    return {
+      state: 'remaining',
+      days,
+      label: `剩余${days}天`,
+      color: 'green',
+      displayStatus: '处理中',
+    }
+  }
+
+  return { state: 'none', days: 0, label: '—', color: 'default', displayStatus: base }
+}
+
+export function facilitySlaColorHex(color: FacilitySlaColor) {
+  if (color === 'green') return '#52c41a'
+  if (color === 'red') return '#ff4d4f'
+  if (color === 'orange') return '#fa8c16'
+  return '#999'
+}
+
+function matchesFacilityTab(displayStatus: FacilityOrderStatus, tab: 'processing' | 'unprocessed' | 'processed' | 'damaged') {
+  if (tab === 'unprocessed') return displayStatus === '待处理' || displayStatus === '超时待处理'
+  if (tab === 'processing') return displayStatus === '处理中' || displayStatus === '逾期处理中'
+  if (tab === 'processed') return displayStatus === '已处理'
+  if (tab === 'damaged') return displayStatus === '损坏'
+  return false
+}
+
+export function facilityOrderMatchesTab(
+  order: FacilityOrderItem,
+  tab: 'all' | 'processing' | 'unprocessed' | 'processed' | 'damaged',
+  now = Date.now(),
+) {
+  if (tab === 'all') return true
+  const displayStatus = resolveFacilitySla(order, getFacilityWorkOrderSettings(), now).displayStatus
+  return matchesFacilityTab(displayStatus, tab)
 }

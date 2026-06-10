@@ -2,6 +2,8 @@ import { MINI_CURRENT_USER } from '../store/miniProgramUser'
 import {
   MINI_FACILITY_STATUS,
   type FacilityFlowRecord,
+  facilitySlaColorHex,
+  resolveFacilitySla,
   type FacilityOrderItem,
   type MiniFacilityStatus,
 } from '../store/alarmSync'
@@ -280,6 +282,7 @@ export function addHandledRecord(record: Omit<MiniHandledRecord, 'id'>) {
 
 export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
   const devices = item.alarmDevices.join('、')
+  const sla = resolveFacilitySla(item)
   return {
     id: item.id,
     facilityId: item.id,
@@ -314,6 +317,13 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
       ...(item.onSiteInfo?.faultReason ? { 故障原因: item.onSiteInfo.faultReason } : {}),
       ...(item.onSiteInfo?.arrivalTime
         ? { 到达现场时间: item.onSiteInfo.arrivalTime.replace('T', ' ') }
+        : {}),
+      ...(sla.label !== '—'
+        ? {
+            时效状态: sla.label,
+            时效颜色: facilitySlaColorHex(sla.color),
+            中台工单状态: sla.displayStatus,
+          }
         : {}),
     },
     flowRecords: (item.flowRecords ?? []) as MiniFlowRecord[],

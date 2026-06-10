@@ -5,11 +5,11 @@ import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
 import {
   findMatchingAlarmRule,
-  getAlarmElapsedMinutes,
+  findWorkOrderGenerationRule,
+  getAlarmWorkOrderSyncRemainMinutes,
   getFacilityOrderByAlarmId,
   getFacilityWorkOrderDelayMinutes,
-  isAlarmEligibleForFacilitySync,
-  isAlarmReadyForFacilitySync,
+  shouldSyncAlarmToFacility,
   syncEligibleAlarmsToFacility,
 } from '../../store/alarmSync'
 import { subscribeAlarmDeviceRules } from '../../store/alarmSettingsStore'
@@ -18,20 +18,28 @@ function facilityOrderLabel(alarm: AlarmListItem) {
   const order = getFacilityOrderByAlarmId(alarm.id)
   if (order) return `${order.id}（告警同步）`
 
-  const rule = findMatchingAlarmRule(alarm)
-  if (!rule) return '—（无匹配告警设置）'
-  if (!rule.generateWorkOrder) return '—（规则未开启工单生成）'
+  if (alarm.status !== '待处理') {
+    return '—（仅待处理告警可按规则自动生成）'
+  }
+
+  const workOrderRule = findWorkOrderGenerationRule(alarm)
+  if (!workOrderRule) {
+    const matched = findMatchingAlarmRule(alarm)
+    if (matched && !matched.generateWorkOrder) {
+      return '—（该设备告警设置未开启工单生成）'
+    }
+    return '—（无匹配告警设置）'
+  }
 
   const delay = getFacilityWorkOrderDelayMinutes(alarm) ?? 5
-  if (!isAlarmReadyForFacilitySync(alarm)) {
-    const elapsed = getAlarmElapsedMinutes(alarm.time)
-    const remain = Math.max(0, delay - elapsed)
+  const remain = getAlarmWorkOrderSyncRemainMinutes(alarm)
+  if (remain !== undefined && remain > 0) {
     return `告警后 ${delay} 分钟生成工单（剩余约 ${remain} 分钟）`
   }
-  if (isAlarmEligibleForFacilitySync(alarm)) {
-    return `符合告警设置，告警后 ${delay} 分钟生成工单`
+  if (shouldSyncAlarmToFacility(alarm)) {
+    return `已到生成时机，告警后 ${delay} 分钟生成工单`
   }
-  return '—（不在设施工单生成范围）'
+  return `告警后 ${delay} 分钟生成工单`
 }
 
 export default function AlarmList() {
@@ -40,6 +48,7 @@ export default function AlarmList() {
   const [statusFilter, setStatusFilter] = useState<string>()
   const [descFilter, setDescFilter] = useState<string>()
   const [detail, setDetail] = useState<AlarmListItem | null>(null)
+  const [, setTick] = useState(0)
 
   const runFacilitySync = () => {
     syncEligibleAlarmsToFacility(data)
@@ -51,6 +60,15 @@ export default function AlarmList() {
 
   useEffect(() => subscribeAlarmDeviceRules(runFacilitySync), [data])
 
+  /** 定时复检：待处理告警到达生成时机后自动创建设施工单，并刷新剩余时间展示 */
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setTick((n) => n + 1)
+      runFacilitySync()
+    }, 30000)
+    return () => window.clearInterval(timer)
+  }, [data])
+
   const filtered = data.filter((r) => {
     if (levelFilter && r.level !== levelFilter) return false
     if (statusFilter && r.status !== statusFilter) return false
@@ -60,7 +78,7 @@ export default function AlarmList() {
 
   const columns = [
     { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
-    { title: '告警ID', dataIndex: 'id', width: 160 },
+    { title: '告警编号', dataIndex: 'id', width: 160 },
     { title: '告警名称', dataIndex: 'name', width: 140 },
     {
       title: '告警等级',
@@ -161,7 +179,7 @@ export default function AlarmList() {
       >
         {detail && (
           <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="告警ID">{detail.id}</Descriptions.Item>
+            <Descriptions.Item label="告警编号">{detail.id}</Descriptions.Item>
             <Descriptions.Item label="告警名称">{detail.name}</Descriptions.Item>
             <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
             <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>

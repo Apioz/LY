@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Dropdown, Button, Space } from 'antd'
 import { DesktopOutlined, MobileOutlined, DownOutlined, RightOutlined } from '@ant-design/icons'
-import { getFacilityOrders, subscribeFacility } from '../store/alarmSync'
+import {
+  getFacilityOrders,
+  subscribeFacility,
+  subscribeFacilityWorkOrderSettings,
+} from '../store/alarmSync'
 import { MINI_CURRENT_USER, MINI_USER_ORG } from '../store/miniProgramUser'
 import {
   getAllMiniOrders,
@@ -65,6 +69,7 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
   const [facilityOrders, setFacilityOrders] = useState(getFacilityOrders())
   const [, tick] = useState(0)
   const [, handledTick] = useState(0)
+  const [slaTick, setSlaTick] = useState(0)
 
   const navigate = (next: MiniRoute) => {
     setPrevRoute(route)
@@ -76,8 +81,16 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
   useEffect(() => subscribeFacility(refreshFacility), [])
   useEffect(() => subscribeMiniOrders(() => tick((n) => n + 1)), [])
   useEffect(() => subscribeHandledRecords(() => handledTick((n) => n + 1)), [])
+  useEffect(() => subscribeFacilityWorkOrderSettings(() => setSlaTick((n) => n + 1)), [])
+  useEffect(() => {
+    const timer = window.setInterval(() => setSlaTick((n) => n + 1), 60000)
+    return () => window.clearInterval(timer)
+  }, [])
 
-  const allOrders = useMemo(() => getAllMiniOrders(facilityOrders), [facilityOrders, tick, handledTick])
+  const allOrders = useMemo(
+    () => getAllMiniOrders(facilityOrders),
+    [facilityOrders, tick, handledTick, slaTick],
+  )
   const counts = useMemo(() => countByType(allOrders, facilityOrders), [allOrders, facilityOrders])
 
   const navTitle = useMemo(() => {
@@ -615,6 +628,17 @@ function OrderCard({ order, onClick }: { order: MiniWorkOrder; onClick: () => vo
         <div className="mini-order-field">
           <span className="mini-order-label">安装位置：</span>
           <span className="mini-order-value">{order.extra['安装位置']}</span>
+        </div>
+      )}
+      {order.type === 'facility' && order.extra?.['时效状态'] && (
+        <div className="mini-order-field">
+          <span className="mini-order-label">时效状态：</span>
+          <span
+            className="mini-order-value"
+            style={{ color: order.extra['时效颜色'] ?? '#52c41a', fontWeight: 600 }}
+          >
+            {order.extra['时效状态']}
+          </span>
         </div>
       )}
     </div>

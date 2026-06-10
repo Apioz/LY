@@ -11,7 +11,7 @@ import {
   FullscreenOutlined,
 } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
-import { fireDeviceStats, fireDeviceRows, FIRE_DEVICE_MONITOR_TYPES } from '../../mock/deviceData'
+import { fireDeviceStats, fireDeviceRows, FIRE_DEVICE_ASSET_CATEGORIES } from '../../mock/deviceData'
 
 const COL_WIDTH = 120
 
@@ -31,24 +31,6 @@ export default function FireDeviceManagement() {
       ellipsis: true,
     },
     {
-      title: '监测类型',
-      dataIndex: 'monitorType',
-      width: 110,
-      align: 'center' as const,
-    },
-    {
-      title: '设备类型',
-      dataIndex: 'deviceType',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
-      title: '对接地址',
-      dataIndex: 'dockAddress',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
       title: '设备名称',
       dataIndex: 'deviceName',
       width: 200,
@@ -58,6 +40,24 @@ export default function FireDeviceManagement() {
       title: '设备编号',
       dataIndex: 'deviceNo',
       width: 110,
+    },
+    {
+      title: '资产分类',
+      dataIndex: 'ID_资产分类',
+      width: 110,
+      align: 'center' as const,
+    },
+    {
+      title: '设备类型',
+      dataIndex: 'ID_设备类型',
+      width: COL_WIDTH,
+      render: renderCell,
+    },
+    {
+      title: '对接地址',
+      dataIndex: 'dockAddress',
+      width: COL_WIDTH,
+      render: renderCell,
     },
     {
       title: '序列号/SN',
@@ -140,12 +140,12 @@ export default function FireDeviceManagement() {
           <Input placeholder="请输入消防设备名称" style={{ width: 180 }} allowClear />
           <span>消防设备编号：</span>
           <Input placeholder="请输入消防设备编号" style={{ width: 180 }} allowClear />
-          <span>监测类型：</span>
+          <span>资产分类：</span>
           <Select
-            placeholder="请选择监测类型"
+            placeholder="请选择资产分类"
             style={{ width: 160 }}
             allowClear
-            options={FIRE_DEVICE_MONITOR_TYPES.map((v) => ({ value: v, label: v }))}
+            options={FIRE_DEVICE_ASSET_CATEGORIES.map((v) => ({ value: v, label: v }))}
           />
           <Button type="link" style={{ padding: 0 }}>
             展开

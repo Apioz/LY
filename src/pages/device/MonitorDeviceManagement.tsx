@@ -10,7 +10,7 @@ import {
   FullscreenOutlined,
 } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
-import { monitorDeviceStats, monitorDeviceRows, MONITOR_DEVICE_MONITOR_TYPES } from '../../mock/deviceData'
+import { monitorDeviceStats, monitorDeviceRows, MONITOR_DEVICE_ASSET_CATEGORIES } from '../../mock/deviceData'
 
 const COL_WIDTH = 120
 
@@ -30,24 +30,6 @@ export default function MonitorDeviceManagement() {
       ellipsis: true,
     },
     {
-      title: '监测类型',
-      dataIndex: 'monitorType',
-      width: 110,
-      align: 'center' as const,
-    },
-    {
-      title: '设备类型',
-      dataIndex: 'deviceType',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
-      title: '网络地址',
-      dataIndex: 'networkAddress',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
       title: '设备名称',
       dataIndex: 'deviceName',
       width: 180,
@@ -58,6 +40,24 @@ export default function MonitorDeviceManagement() {
       dataIndex: 'deviceNo',
       width: 150,
       ellipsis: true,
+    },
+    {
+      title: '资产分类',
+      dataIndex: 'ID_资产分类',
+      width: 110,
+      align: 'center' as const,
+    },
+    {
+      title: '设备类型',
+      dataIndex: 'ID_设备类型',
+      width: COL_WIDTH,
+      render: renderCell,
+    },
+    {
+      title: '网络地址',
+      dataIndex: 'networkAddress',
+      width: COL_WIDTH,
+      render: renderCell,
     },
     {
       title: '序列号/SN',
@@ -150,12 +150,12 @@ export default function MonitorDeviceManagement() {
               { value: '异常', label: '异常' },
             ]}
           />
-          <span>监测类型：</span>
+          <span>资产分类：</span>
           <Select
-            placeholder="请选择监测类型"
+            placeholder="请选择资产分类"
             style={{ width: 160 }}
             allowClear
-            options={MONITOR_DEVICE_MONITOR_TYPES.map((v) => ({ value: v, label: v }))}
+            options={MONITOR_DEVICE_ASSET_CATEGORIES.map((v) => ({ value: v, label: v }))}
           />
           <Button type="link" style={{ padding: 0 }}>
             展开

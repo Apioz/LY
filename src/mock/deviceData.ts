@@ -14,18 +14,25 @@ export const monitorDeviceStats = [
 
 import { ALARM_DEVICE_CATEGORIES } from '../pages/alarm/constants'
 
-/** 消防设备二级子类（监测类型可选值） */
-export const FIRE_DEVICE_MONITOR_TYPES = [...ALARM_DEVICE_CATEGORIES['消防设备']] as const
+/** 消防设备资产分类可选值 */
+export const FIRE_DEVICE_ASSET_CATEGORIES = [...ALARM_DEVICE_CATEGORIES['消防设备']] as const
 
-/** 安防监控二级子类（监测类型可选值） */
-export const MONITOR_DEVICE_MONITOR_TYPES = [...ALARM_DEVICE_CATEGORIES['安防监控']] as const
+/** 安防监控资产分类可选值 */
+export const MONITOR_DEVICE_ASSET_CATEGORIES = [...ALARM_DEVICE_CATEGORIES['安防监控']] as const
+
+/** @deprecated 使用 FIRE_DEVICE_ASSET_CATEGORIES */
+export const FIRE_DEVICE_MONITOR_TYPES = FIRE_DEVICE_ASSET_CATEGORIES
+
+/** @deprecated 使用 MONITOR_DEVICE_ASSET_CATEGORIES */
+export const MONITOR_DEVICE_MONITOR_TYPES = MONITOR_DEVICE_ASSET_CATEGORIES
 
 export interface FireDeviceRow {
   key: string
   location: string
-  /** 监测类型：消防设备二级子类 */
-  monitorType: (typeof FIRE_DEVICE_MONITOR_TYPES)[number]
-  deviceType?: string
+  /** 资产分类 */
+  ID_资产分类: (typeof FIRE_DEVICE_ASSET_CATEGORIES)[number]
+  /** 设备类型 */
+  ID_设备类型?: string
   dockAddress?: string
   deviceName: string
   deviceNo: string
@@ -42,9 +49,10 @@ export interface FireDeviceRow {
 export interface MonitorDeviceRow {
   key: string
   location: string
-  /** 监测类型：安防监控二级子类 */
-  monitorType: (typeof MONITOR_DEVICE_MONITOR_TYPES)[number]
-  deviceType?: string
+  /** 资产分类 */
+  ID_资产分类: (typeof MONITOR_DEVICE_ASSET_CATEGORIES)[number]
+  /** 设备类型 */
+  ID_设备类型?: string
   networkAddress?: string
   deviceName: string
   deviceNo: string
@@ -62,8 +70,8 @@ export const fireDeviceRows: FireDeviceRow[] = [
   {
     key: '1',
     location: '工程楼3F/1F/空调热水循环泵P-204机房',
-    monitorType: '烟感探测器',
-    deviceType: '消防设备',
+    ID_资产分类: '烟感探测器',
+    ID_设备类型: '消防设备',
     deviceName: '空调热水循环泵P-204',
     deviceNo: 'P-204',
     channelNo: '1',
@@ -74,8 +82,8 @@ export const fireDeviceRows: FireDeviceRow[] = [
   {
     key: '2',
     location: '工程楼2F/消防控制室/主机机柜',
-    monitorType: '消防主机',
-    deviceType: '消防设备',
+    ID_资产分类: '消防主机',
+    ID_设备类型: '消防设备',
     deviceName: '火灾报警控制器',
     deviceNo: 'FAC-001',
     channelNo: '1',
@@ -106,8 +114,8 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '1',
     location: '研发实验室5A/1F/南侧大门入口',
-    monitorType: '监控摄像头',
-    deviceType: '安防监控',
+    ID_资产分类: '监控摄像头',
+    ID_设备类型: '安防监控',
     deviceName: 'Camera-SKJ-001',
     deviceNo: 'SZ-007_SZ-007',
     serialNo: 'SZ-007',
@@ -121,8 +129,8 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '2',
     location: '研发实验室5A/1F/4号与5号电梯厅中间',
-    monitorType: '监控摄像头',
-    deviceType: '安防监控',
+    ID_资产分类: '监控摄像头',
+    ID_设备类型: '安防监控',
     deviceName: '4号与5号电梯厅中间半球',
     deviceNo: 'SZ-008_SZ-008',
     serialNo: 'SZ-008',
@@ -136,8 +144,8 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '3',
     location: '双翼大厦/1F/主入口门厅',
-    monitorType: '门禁系统',
-    deviceType: '安防监控',
+    ID_资产分类: '门禁系统',
+    ID_设备类型: '安防监控',
     deviceName: '主入口门禁摄像头',
     deviceNo: 'SZ-009_SZ-009',
     serialNo: 'SZ-009',
@@ -151,8 +159,8 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '4',
     location: '森林湾大厦/B1F/车库通道A',
-    monitorType: '监控摄像头',
-    deviceType: '安防监控',
+    ID_资产分类: '监控摄像头',
+    ID_设备类型: '安防监控',
     deviceName: '车库通道枪机-A12',
     deviceNo: 'SZ-010_SZ-010',
     serialNo: 'SZ-010',
@@ -166,8 +174,8 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '5',
     location: '中期大厦/屋顶/设备平台西侧',
-    monitorType: '监控摄像头',
-    deviceType: '安防监控',
+    ID_资产分类: '监控摄像头',
+    ID_设备类型: '安防监控',
     deviceName: '屋顶监控云台',
     deviceNo: 'SZ-011_SZ-011',
     serialNo: 'SZ-011',

@@ -19,19 +19,29 @@ const LEVEL_WARN_COLORS: Record<number, string> = {
   4: '#1890ff',
 }
 
+function periodToTrendRange(period: 'day' | 'month' | 'year'): 'today' | 'month' | 'year' {
+  if (period === 'day') return 'today'
+  if (period === 'year') return 'year'
+  return 'month'
+}
+
 export default function AlarmStatistics() {
   const [period, setPeriod] = useState<'day' | 'month' | 'year'>('month')
   const [date, setDate] = useState<Dayjs>(dayjs('2025-01'))
   const [defense, setDefense] = useState<'人防数据' | '技防数据'>('技防数据')
-  const [trendRange, setTrendRange] = useState<'today' | 'month' | 'year'>('month')
   const [detailId, setDetailId] = useState<string | null>(null)
 
   const kpiCards = useMemo(() => getKpiCards(period), [period])
+  const trendRange = periodToTrendRange(period)
   const realtimeList = defense === '人防数据' ? realtimeHumanAlarms : realtimeTechAlarms
   const detailItem = realtimeList.find((a) => a.id === detailId)
 
   const levelChart = useMemo(() => {
-    const data = getLevelDistributionFour()
+    const factor = period === 'day' ? 0.3 : period === 'year' ? 3 : 1
+    const data = getLevelDistributionFour().map((d) => ({
+      ...d,
+      value: +(d.value * factor).toFixed(1),
+    }))
     return {
       tooltip: { trigger: 'item' },
       legend: { orient: 'vertical', right: 20, top: 'center' },
@@ -49,7 +59,7 @@ export default function AlarmStatistics() {
         },
       ],
     }
-  }, [])
+  }, [period])
 
   const trendChart = useMemo(() => {
     const { x, data } = getTrendData(trendRange)
@@ -116,17 +126,7 @@ export default function AlarmStatistics() {
           <Card title="告警等级分布" size="small" style={{ marginBottom: 16 }}>
             <ReactECharts option={levelChart} style={{ height: 260 }} />
           </Card>
-          <Card
-            title="告警趋势图"
-            size="small"
-            extra={
-              <Radio.Group value={trendRange} onChange={(e) => setTrendRange(e.target.value)} size="small">
-                <Radio.Button value="today">今日</Radio.Button>
-                <Radio.Button value="month">本月</Radio.Button>
-                <Radio.Button value="year">全年</Radio.Button>
-              </Radio.Group>
-            }
-          >
+          <Card title="告警趋势图" size="small">
             <ReactECharts option={trendChart} style={{ height: 280 }} />
           </Card>
         </Col>
