@@ -290,7 +290,14 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
     initiator: item.initiator ?? '系统',
     receiver: item.receiver,
     repairStarted: !!item.repairStarted,
-    description: item.damageNote ? `损坏说明：${item.damageNote}` : undefined,
+    description:
+      item.damageNote
+        ? `损坏描述：${item.damageNote}`
+        : item.repairNote
+          ? `维修描述：${item.repairNote}`
+          : item.falseAlarmNote
+            ? `误报说明：${item.falseAlarmNote}`
+            : undefined,
     extra: {
       工单编号: item.id,
       告警设备: devices,
@@ -299,7 +306,9 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
       告警描述: String(item.desc),
       告警时间: item.alarmTime,
       来源: item.source,
-      ...(item.damageNote ? { 损坏说明: item.damageNote } : {}),
+      ...(item.falseAlarmNote ? { 误报说明: item.falseAlarmNote } : {}),
+      ...(item.repairNote ? { 维修描述: item.repairNote } : {}),
+      ...(item.damageNote ? { 损坏描述: item.damageNote } : {}),
       ...(item.dispatchGroup ? { 派单工作组: item.dispatchGroup } : {}),
       ...(item.dispatchNote ? { 派单说明: item.dispatchNote } : {}),
       ...(item.onSiteInfo?.faultReason ? { 故障原因: item.onSiteInfo.faultReason } : {}),

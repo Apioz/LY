@@ -49,7 +49,6 @@ function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
     { label: '告警等级', value: extra['告警等级'] ?? '—' },
     { label: '告警描述', value: extra['告警描述'] ?? '—' },
     { label: '告警时间', value: extra['告警时间'] ?? order.createTime },
-    { label: '来源', value: extra['来源'] ?? '—' },
     { label: '发起人', value: order.initiator },
     { label: '接单人', value: order.receiver === '-' ? '—' : order.receiver },
   ]
@@ -57,7 +56,9 @@ function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
   if (extra['派单说明']) rows.push({ label: '派单说明', value: extra['派单说明'] })
   if (extra['到达现场时间']) rows.push({ label: '到达现场时间', value: extra['到达现场时间'] })
   if (extra['故障原因']) rows.push({ label: '故障原因', value: extra['故障原因'] })
-  if (extra['损坏说明']) rows.push({ label: '损坏说明', value: extra['损坏说明'] })
+  if (extra['误报说明']) rows.push({ label: '误报说明', value: extra['误报说明'] })
+  if (extra['维修描述']) rows.push({ label: '维修描述', value: extra['维修描述'] })
+  if (extra['损坏描述']) rows.push({ label: '损坏描述', value: extra['损坏描述'] })
 
   return (
     <>

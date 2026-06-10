@@ -9,9 +9,7 @@ import {
   Descriptions,
   Tabs,
   Alert,
-  Input,
   Button,
-  message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
@@ -19,8 +17,8 @@ import SearchBar from '../components/SearchBar'
 import {
   FACILITY_ORDER_STATUS,
   getFacilityOrders,
+  getFacilitySubmitNote,
   subscribeFacility,
-  updateFacilityDamageNote,
   type FacilityOrderItem,
   type FacilityOrderStatus,
 } from '../store/alarmSync'
@@ -65,15 +63,10 @@ export default function FacilityWorkOrder() {
   const [draftMonth, setDraftMonth] = useState<Dayjs | null>(null)
   const [applied, setApplied] = useState<ListFilters>({})
   const [detail, setDetail] = useState<FacilityOrderItem | null>(null)
-  const [damageNoteDraft, setDamageNoteDraft] = useState('')
 
   useEffect(() => {
     return subscribeFacility(() => setData([...getFacilityOrders()]))
   }, [])
-
-  useEffect(() => {
-    if (detail) setDamageNoteDraft(detail.damageNote ?? '')
-  }, [detail])
 
   const tabStatus = STATUS_TABS.find((t) => t.key === statusTab)?.status
 
@@ -87,10 +80,8 @@ export default function FacilityWorkOrder() {
     return rows
   }, [data, tabStatus, applied])
 
-  const showDamageNoteCol = statusTab === 'damaged' || statusTab === 'all'
-
-  const columns: ColumnsType<FacilityOrderItem> = useMemo(() => {
-    const base: ColumnsType<FacilityOrderItem> = [
+  const columns: ColumnsType<FacilityOrderItem> = useMemo(
+    () => [
       { title: '序号', width: 64, align: 'center', render: (_v, _r, i) => i + 1 },
       { title: '工单编号', dataIndex: 'id', width: COL_WIDTH, ellipsis: true },
       {
@@ -124,40 +115,16 @@ export default function FacilityWorkOrder() {
         render: (v: string) => <Tag color={statusColor[v] ?? 'default'}>{v}</Tag>,
       },
       { title: '接单人', dataIndex: 'receiver', width: COL_WIDTH, ellipsis: true },
-    ]
-    if (showDamageNoteCol) {
-      base.push({
-        title: '损坏说明',
-        dataIndex: 'damageNote',
-        width: COL_WIDTH,
-        ellipsis: true,
-        render: (v, record) =>
-          record.status === '损坏' ? v || <span style={{ color: '#999' }}>待填写</span> : '-',
-      })
-    }
-    base.push({
-      title: '操作',
-      width: showDamageNoteCol ? 120 : 80,
-      fixed: 'right',
-      align: 'center',
-      render: (_v, record) => (
-        <Space size={4}>
-          <a onClick={() => setDetail(record)}>查看</a>
-          {record.status === '损坏' && (
-            <a
-              onClick={() => {
-                setDetail(record)
-                setDamageNoteDraft(record.damageNote ?? '')
-              }}
-            >
-              填写说明
-            </a>
-          )}
-        </Space>
-      ),
-    })
-    return base
-  }, [showDamageNoteCol])
+      {
+        title: '操作',
+        width: 80,
+        fixed: 'right',
+        align: 'center',
+        render: (_v, record) => <a onClick={() => setDetail(record)}>查看</a>,
+      },
+    ],
+    [],
+  )
 
   const handleSearch = () => {
     setApplied({
@@ -177,14 +144,7 @@ export default function FacilityWorkOrder() {
     setStatusTab('all')
   }
 
-  const saveDamageNote = () => {
-    if (!detail || detail.status !== '损坏') return
-    updateFacilityDamageNote(detail.id, damageNoteDraft.trim())
-    message.success('损坏说明已保存')
-    setDetail({ ...detail, damageNote: damageNoteDraft.trim() })
-  }
-
-  const scrollX = COL_WIDTH * (showDamageNoteCol ? 9 : 8) + 64 + (showDamageNoteCol ? 120 : 80)
+  const scrollX = COL_WIDTH * 8 + 64 + 80
 
   return (
     <>
@@ -255,53 +215,48 @@ export default function FacilityWorkOrder() {
         open={!!detail}
         onCancel={() => setDetail(null)}
         footer={
-          detail?.status === '损坏'
-            ? [
-                <Button key="cancel" onClick={() => setDetail(null)}>
-                  关闭
-                </Button>,
-                <Button key="save" type="primary" onClick={saveDamageNote}>
-                  保存损坏说明
-                </Button>,
-              ]
-            : null
+          <Button onClick={() => setDetail(null)}>关闭</Button>
         }
         width={600}
       >
-        {detail && (
-          <>
-            <Descriptions bordered column={1} size="small">
-              <Descriptions.Item label="工单编号">{detail.id}</Descriptions.Item>
-              <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
-              <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
-              <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
-              <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
-              <Descriptions.Item label="告警时间">{detail.alarmTime}</Descriptions.Item>
-              <Descriptions.Item label="工单状态">{detail.status}</Descriptions.Item>
-              <Descriptions.Item label="接单人">{detail.receiver}</Descriptions.Item>
-              <Descriptions.Item label="来源">{detail.source}</Descriptions.Item>
-            </Descriptions>
-            {detail.status === '损坏' && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>损坏说明</div>
-                <Input.TextArea
-                  rows={4}
-                  placeholder="请填写损坏原因、现场情况及维修备注"
-                  value={damageNoteDraft}
-                  onChange={(e) => setDamageNoteDraft(e.target.value)}
-                  maxLength={500}
-                  showCount
-                />
+        {detail && (() => {
+          const falseAlarmNote = getFacilitySubmitNote(detail, '误报说明')
+          const repairNote = getFacilitySubmitNote(detail, '维修描述')
+          const damageNote = getFacilitySubmitNote(detail, '损坏描述')
+          const showSubmitNotes = !!(falseAlarmNote || repairNote || detail.status === '损坏')
+
+          return (
+            <>
+              <Descriptions bordered column={1} size="small">
+                <Descriptions.Item label="工单编号">{detail.id}</Descriptions.Item>
+                <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
+                <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
+                <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
+                <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
+                <Descriptions.Item label="告警时间">{detail.alarmTime}</Descriptions.Item>
+                <Descriptions.Item label="工单状态">{detail.status}</Descriptions.Item>
+                <Descriptions.Item label="接单人">{detail.receiver}</Descriptions.Item>
+                {falseAlarmNote && (
+                  <Descriptions.Item label="误报说明">{falseAlarmNote}</Descriptions.Item>
+                )}
+                {repairNote && <Descriptions.Item label="维修描述">{repairNote}</Descriptions.Item>}
+                {detail.status === '损坏' && (
+                  <Descriptions.Item label="损坏描述">
+                    {damageNote || <span style={{ color: '#999' }}>暂无</span>}
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+              {showSubmitNotes && (
                 <Alert
                   type="info"
                   showIcon
-                  style={{ marginTop: 12 }}
-                  message="损坏状态的工单可被维修人员再次接单；填写说明便于后续维修与追溯。"
+                  style={{ marginTop: 16 }}
+                  message="误报说明、维修描述、损坏描述由小程序运维人员在完成工单时填写，中台仅可查看。"
                 />
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )
+        })()}
       </Modal>
     </>
   )

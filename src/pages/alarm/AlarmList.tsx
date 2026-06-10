@@ -6,7 +6,6 @@ import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
 import AlarmFacilitySyncSettingsModal from './AlarmFacilitySyncSettings'
 import {
-  closeFacilityByAlarm,
   getFacilityOrderByAlarmId,
   isAlarmEligibleForFacilitySync,
   subscribeAlarmFacilitySyncSettings,
@@ -87,31 +86,9 @@ export default function AlarmList() {
     { title: '解除告警时间', dataIndex: 'releaseTime', width: 170, render: (v: string) => v || '-' },
     {
       title: '操作',
-      width: 120,
+      width: 80,
       fixed: 'right' as const,
-      render: (_: unknown, record: AlarmListItem) => (
-        <Space>
-          <a onClick={() => setDetail(record)}>详情</a>
-          {record.status === '待处理' && record.desc === '设备超时' && (
-            <a
-              onClick={() => {
-                const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
-                setData((prev) =>
-                  prev.map((r) =>
-                    r.id === record.id
-                      ? { ...r, status: '已处理' as const, releaseTime: now, autoResolved: true }
-                      : r,
-                  ),
-                )
-                closeFacilityByAlarm(record.id)
-                message.success('设备已恢复传输，告警已自动解除，状态变更为已处理')
-              }}
-            >
-              模拟恢复
-            </a>
-          )}
-        </Space>
-      ),
+      render: (_: unknown, record: AlarmListItem) => <a onClick={() => setDetail(record)}>详情</a>,
     },
   ]
 

@@ -121,6 +121,11 @@ export interface FacilityOrderItem {
   receiver: string
   alarmId?: string
   source: '告警同步' | '手动'
+  /** 小程序提交误报时填写的误报说明 */
+  falseAlarmNote?: string
+  /** 小程序提交维修时填写的维修描述 */
+  repairNote?: string
+  /** 小程序提交损坏时填写的损坏描述 */
   damageNote?: string
   initiator?: string
   flowRecords?: FacilityFlowRecord[]
@@ -149,6 +154,29 @@ function appendMergedFlow(
   const t = time ?? nowStr()
   const detail = fields.map((f) => `${f.label}：${f.value}`).join('；')
   return [...(records ?? []), { time: t, action, operator, detail, fields, images }]
+}
+
+export type FacilitySubmitNoteLabel = '误报说明' | '维修描述' | '损坏描述'
+
+/** 获取小程序提交的描述（优先读持久化字段，兼容从流转记录解析） */
+export function getFacilitySubmitNote(
+  order: FacilityOrderItem,
+  label: FacilitySubmitNoteLabel,
+): string | undefined {
+  const direct =
+    label === '误报说明'
+      ? order.falseAlarmNote
+      : label === '维修描述'
+        ? order.repairNote
+        : order.damageNote
+  if (direct?.trim()) return direct.trim()
+  const records = order.flowRecords
+  if (!records?.length) return undefined
+  for (let i = records.length - 1; i >= 0; i--) {
+    const field = records[i].fields?.find((f) => f.label === label)
+    if (field?.value?.trim()) return field.value.trim()
+  }
+  return undefined
 }
 
 export function platformStatusFromMini(mini: MiniFacilityStatus | string): FacilityOrderStatus {
@@ -510,6 +538,7 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '李维修',
     source: '告警同步',
     initiator: '系统',
+    repairNote: '现场复测正常',
     flowRecords: [
       { time: '2026-05-28 16:02:18', action: '告警同步生成设施工单', operator: '系统', fields: [{ label: '工单状态', value: '待接单' }] },
       { time: '2026-05-28 16:30:00', action: '维修人员接单', operator: '李维修', fields: [{ label: '工单状态', value: '待完成' }] },
@@ -899,6 +928,9 @@ export function submitFalseAlarmFacilityOrder(orderId: string, receiver: string,
     return normalizeOrder({
       ...o,
       miniStatus: '已完成',
+      falseAlarmNote: payload.note,
+      repairNote: undefined,
+      damageNote: undefined,
       repairDraft: undefined,
       repairStarted: undefined,
       onSiteInfo: undefined,
@@ -921,6 +953,9 @@ export function submitRepairFacilityOrder(orderId: string, receiver: string, pay
     return normalizeOrder({
       ...o,
       miniStatus: '已完成',
+      repairNote: payload.note,
+      falseAlarmNote: undefined,
+      damageNote: undefined,
       repairDraft: undefined,
       repairStarted: undefined,
       onSiteInfo: undefined,
@@ -945,6 +980,8 @@ export function submitDamageFacilityOrder(orderId: string, receiver: string, pay
       miniStatus: '损坏',
       receiver: '-',
       damageNote: payload.note,
+      falseAlarmNote: undefined,
+      repairNote: undefined,
       repairDraft: undefined,
       repairStarted: undefined,
       onSiteInfo: undefined,
@@ -988,13 +1025,6 @@ export function damageFacilityOrder(
     photos: [],
     photoNames: payload.repairPhotos ?? [],
   })
-}
-
-export function updateFacilityDamageNote(orderId: string, damageNote: string) {
-  facilityOrders = facilityOrders.map((o) =>
-    o.id === orderId && o.miniStatus === '损坏' ? { ...o, damageNote } : o,
-  )
-  notifyFacility()
 }
 
 export type ThresholdMode = 'none' | 'deviceTimeout'
