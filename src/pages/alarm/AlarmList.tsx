@@ -1,45 +1,55 @@
 import { useEffect, useState } from 'react'
 import { Table, Select, Space, DatePicker, Tag, Modal, Descriptions, message, Button } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
 import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
-import AlarmFacilitySyncSettingsModal from './AlarmFacilitySyncSettings'
 import {
+  findMatchingAlarmRule,
+  getAlarmElapsedMinutes,
   getFacilityOrderByAlarmId,
+  getFacilityWorkOrderDelayMinutes,
   isAlarmEligibleForFacilitySync,
-  subscribeAlarmFacilitySyncSettings,
+  isAlarmReadyForFacilitySync,
   syncEligibleAlarmsToFacility,
 } from '../../store/alarmSync'
+import { subscribeAlarmDeviceRules } from '../../store/alarmSettingsStore'
 
 function facilityOrderLabel(alarm: AlarmListItem) {
   const order = getFacilityOrderByAlarmId(alarm.id)
   if (order) return `${order.id}（告警同步）`
-  if (isAlarmEligibleForFacilitySync(alarm)) return '符合设置条件，待处理时将自动生成'
+
+  const rule = findMatchingAlarmRule(alarm)
+  if (!rule) return '—（无匹配告警设置）'
+  if (!rule.generateWorkOrder) return '—（规则未开启工单生成）'
+
+  const delay = getFacilityWorkOrderDelayMinutes(alarm) ?? 5
+  if (!isAlarmReadyForFacilitySync(alarm)) {
+    const elapsed = getAlarmElapsedMinutes(alarm.time)
+    const remain = Math.max(0, delay - elapsed)
+    return `告警后 ${delay} 分钟生成工单（剩余约 ${remain} 分钟）`
+  }
+  if (isAlarmEligibleForFacilitySync(alarm)) {
+    return `符合告警设置，告警后 ${delay} 分钟生成工单`
+  }
   return '—（不在设施工单生成范围）'
 }
 
 export default function AlarmList() {
-  const [data, setData] = useState<AlarmListItem[]>(alarmListData)
+  const [data] = useState<AlarmListItem[]>(alarmListData)
   const [levelFilter, setLevelFilter] = useState<string>()
   const [statusFilter, setStatusFilter] = useState<string>()
   const [descFilter, setDescFilter] = useState<string>()
   const [detail, setDetail] = useState<AlarmListItem | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const runFacilitySync = (alarms: AlarmListItem[], notify = false) => {
-    const created = syncEligibleAlarmsToFacility(alarms)
-    if (notify && created > 0) {
-      message.info(`已根据设置新生成 ${created} 条设施工单`)
-    }
-    return created
+  const runFacilitySync = () => {
+    syncEligibleAlarmsToFacility(data)
   }
 
   useEffect(() => {
-    runFacilitySync(data)
+    runFacilitySync()
   }, [])
 
-  useEffect(() => subscribeAlarmFacilitySyncSettings(() => runFacilitySync(data)), [data])
+  useEffect(() => subscribeAlarmDeviceRules(runFacilitySync), [data])
 
   const filtered = data.filter((r) => {
     if (levelFilter && r.level !== levelFilter) return false
@@ -134,18 +144,6 @@ export default function AlarmList() {
           <DatePicker.RangePicker />
         </Space>
       </SearchBar>
-      <div
-        style={{
-          padding: '8px 16px',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
-        <Button type="default" icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
-          告警信息设置
-        </Button>
-      </div>
       <Table
         rowKey="id"
         columns={columns}
@@ -153,11 +151,6 @@ export default function AlarmList() {
         scroll={{ x: 1480 }}
         pagination={{ showTotal: (t) => `共 ${t} 条`, pageSize: 10, showSizeChanger: true }}
         style={{ padding: 16 }}
-      />
-      <AlarmFacilitySyncSettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onSaved={() => runFacilitySync(data, true)}
       />
       <Modal
         title="告警详情"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Table,
   Space,
@@ -15,6 +15,8 @@ import {
   Cascader,
   Tag,
   Typography,
+  Descriptions,
+  Checkbox,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
@@ -23,26 +25,35 @@ import TableToolbar from '../../components/TableToolbar'
 import { ALARM_LEVELS, LEVEL_COLORS } from './constants'
 import { formatThresholdDisplay, type ThresholdMode } from '../../store/alarmSync'
 import {
-  initialAlarmDeviceRules2,
+  getAlarmDeviceRules,
+  subscribeAlarmDeviceRules,
+  updateAlarmDeviceRules,
+} from '../../store/alarmSettingsStore'
+import {
   buildAlarmSettings2Tree,
   buildDeviceCatalogCascaderOptions,
   createSubCategoryRule,
   findDeviceRule,
+  formatGenerateWorkOrderDisplay,
+  formatWorkOrderDelayPhrase,
+  getSubCategoryDeviceCount,
   subCategoryPathKey,
   pathsToSubCategorySelections,
   ruleToSubCategoryPath,
   DEFAULT_TIMEOUT_MINUTES,
+  DEFAULT_WORK_ORDER_DELAY_MINUTES,
   type AlarmDeviceRule2,
   type AlarmSettings2TreeRow,
 } from '../../mock/alarmSettings2Data'
 
 const { Text } = Typography
 
-const COL_WIDTH = 160
-const COLUMN_COUNT = 6
+const COL_WIDTH = 140
+const COLUMN_COUNT = 7
 const NONE_THRESHOLD_TIP = '仅启用第三方推送的告警信息，不做额外阈值设置。'
 const DEVICE_TIMEOUT_TIP =
   '本系统对设备状态做监控，设备超过设定离线判定时长未响应将被判定为离线并触发设备超时报警。'
+const WORK_ORDER_TIP = '勾选后按「告警后 × 分钟生成工单」规则自动生成设施工单；不勾选则不生成。'
 
 const catalogOptions = buildDeviceCatalogCascaderOptions()
 
@@ -78,8 +89,27 @@ function collectExpandKeysForSearch(rules: AlarmDeviceRule2[]): React.Key[] {
   return [...keys]
 }
 
+function buildRulePatchFromForm(values: {
+  level: string
+  thresholdMode: ThresholdMode
+  customMinutes?: number
+  generateWorkOrder: boolean
+  workOrderDelayMinutes?: number
+}) {
+  return {
+    level: values.level,
+    thresholdMode: values.thresholdMode,
+    customMinutes: values.thresholdMode === 'deviceTimeout' ? values.customMinutes : undefined,
+    thresholdDisplay: formatThresholdDisplay(values.thresholdMode, values.customMinutes),
+    generateWorkOrder: values.generateWorkOrder,
+    workOrderDelayMinutes: values.generateWorkOrder
+      ? (values.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES)
+      : undefined,
+  }
+}
+
 export default function AlarmSettings2() {
-  const [rules, setRules] = useState<AlarmDeviceRule2[]>(initialAlarmDeviceRules2)
+  const [rules, setRules] = useState<AlarmDeviceRule2[]>(getAlarmDeviceRules())
   const [selected, setSelected] = useState<React.Key[]>([])
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([])
   const [draftKeyword, setDraftKeyword] = useState('')
@@ -88,10 +118,14 @@ export default function AlarmSettings2() {
   const [appliedKeyword, setAppliedKeyword] = useState('')
   const [appliedLevel, setAppliedLevel] = useState<string>()
   const [appliedDateRange, setAppliedDateRange] = useState<[Dayjs, Dayjs] | null>(null)
-  const [modal, setModal] = useState<'add' | 'edit' | null>(null)
+  const [modal, setModal] = useState<'add' | 'edit' | 'view' | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [viewingKey, setViewingKey] = useState<string | null>(null)
   const [form] = Form.useForm()
   const thresholdMode = Form.useWatch('thresholdMode', form) as ThresholdMode | undefined
+  const generateWorkOrder = Form.useWatch('generateWorkOrder', form) as boolean | undefined
+
+  useEffect(() => subscribeAlarmDeviceRules(() => setRules([...getAlarmDeviceRules()])), [])
 
   const filteredRules = useMemo(
     () => filterRules(rules, appliedKeyword, appliedLevel, appliedDateRange),
@@ -112,6 +146,8 @@ export default function AlarmSettings2() {
     () => buildAlarmSettings2Tree(rules, displayFilter),
     [rules, displayFilter],
   )
+
+  const viewingRule = viewingKey ? findDeviceRule(rules, viewingKey) : undefined
 
   const handleSearch = () => {
     setAppliedKeyword(draftKeyword)
@@ -139,12 +175,15 @@ export default function AlarmSettings2() {
   const openAdd = (presetPaths?: string[][]) => {
     setModal('add')
     setEditingKey(null)
+    setViewingKey(null)
     form.resetFields()
     form.setFieldsValue({
       subCategoryPaths: presetPaths ?? [],
       thresholdMode: 'deviceTimeout',
       customMinutes: DEFAULT_TIMEOUT_MINUTES,
       level: '三级告警',
+      generateWorkOrder: true,
+      workOrderDelayMinutes: DEFAULT_WORK_ORDER_DELAY_MINUTES,
     })
   }
 
@@ -153,17 +192,28 @@ export default function AlarmSettings2() {
     if (!record) return
     setModal('edit')
     setEditingKey(ruleKey)
+    setViewingKey(null)
     form.setFieldsValue({
       subCategoryPaths: [ruleToSubCategoryPath(record)],
       level: record.level,
       thresholdMode: record.thresholdMode,
       customMinutes: record.customMinutes ?? DEFAULT_TIMEOUT_MINUTES,
+      generateWorkOrder: record.generateWorkOrder,
+      workOrderDelayMinutes: record.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES,
     })
+  }
+
+  const openView = (ruleKey: string) => {
+    const record = findDeviceRule(rules, ruleKey)
+    if (!record) return
+    setModal('view')
+    setViewingKey(ruleKey)
+    setEditingKey(null)
   }
 
   const handleSave = () => {
     form.validateFields().then((values) => {
-      const thresholdDisplay = formatThresholdDisplay(values.thresholdMode, values.customMinutes)
+      const patch = buildRulePatchFromForm(values)
 
       if (modal === 'add') {
         const selections = pathsToSubCategorySelections(values.subCategoryPaths ?? [])
@@ -185,28 +235,16 @@ export default function AlarmSettings2() {
             {
               rootCategory: s.rootCategory,
               subCategory: s.subCategory,
-              level: values.level,
-              thresholdMode: values.thresholdMode,
-              customMinutes: values.customMinutes,
+              ...patch,
             },
             `${Date.now()}-${i}`,
           ),
         )
-        setRules((prev) => [...prev, ...newRows])
+        updateAlarmDeviceRules((prev) => [...prev, ...newRows])
         message.success(skipped > 0 ? `新增 ${toAdd.length} 条，${skipped} 条已存在已跳过` : `新增 ${toAdd.length} 条成功`)
       } else if (modal === 'edit' && editingKey) {
-        setRules((prev) =>
-          prev.map((r) =>
-            r.key === editingKey
-              ? {
-                  ...r,
-                  level: values.level,
-                  thresholdMode: values.thresholdMode,
-                  customMinutes: values.thresholdMode === 'deviceTimeout' ? values.customMinutes : undefined,
-                  thresholdDisplay,
-                }
-              : r,
-          ),
+        updateAlarmDeviceRules((prev) =>
+          prev.map((r) => (r.key === editingKey ? { ...r, ...patch } : r)),
         )
         message.success('保存成功')
       }
@@ -222,7 +260,7 @@ export default function AlarmSettings2() {
       content: `确定删除「${record.rootCategory} / ${record.subCategory}」的告警设置吗？`,
       okType: 'danger',
       onOk: () => {
-        setRules((prev) => prev.filter((r) => r.key !== ruleKey))
+        updateAlarmDeviceRules((prev) => prev.filter((r) => r.key !== ruleKey))
         setSelected((prev) => prev.filter((k) => k !== ruleKey))
         message.success('删除成功')
       },
@@ -240,7 +278,7 @@ export default function AlarmSettings2() {
       content: `确定删除选中的 ${ruleKeys.length} 条告警设置吗？`,
       okType: 'danger',
       onOk: () => {
-        setRules((prev) => prev.filter((r) => !ruleKeys.includes(r.key)))
+        updateAlarmDeviceRules((prev) => prev.filter((r) => !ruleKeys.includes(r.key)))
         setSelected([])
         message.success('删除成功')
       },
@@ -259,7 +297,7 @@ export default function AlarmSettings2() {
     {
       title: '子级数量',
       dataIndex: 'childCount',
-      width: COL_WIDTH,
+      width: 100,
       align: 'center',
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
@@ -273,10 +311,22 @@ export default function AlarmSettings2() {
     {
       title: '告警等级',
       dataIndex: 'level',
-      width: COL_WIDTH,
+      width: 100,
       align: 'center',
       render: (v, record) =>
         isCategoryRow(record) ? <Tag color={LEVEL_COLORS[v]}>{v}</Tag> : '',
+    },
+    {
+      title: '是否生成工单',
+      width: 168,
+      align: 'center',
+      render: (_v, record) =>
+        isCategoryRow(record)
+          ? formatGenerateWorkOrderDisplay({
+              generateWorkOrder: !!record.generateWorkOrder,
+              workOrderDelayMinutes: record.workOrderDelayMinutes,
+            })
+          : '',
     },
     {
       title: '创建时间',
@@ -287,11 +337,13 @@ export default function AlarmSettings2() {
     },
     {
       title: '操作',
-      width: COL_WIDTH,
+      width: 140,
       align: 'center',
+      fixed: 'right',
       render: (_v, record) =>
         isCategoryRow(record) ? (
           <Space size={8}>
+            <a onClick={() => openView(record.key)}>查看</a>
             <a onClick={() => openEdit(record.key)}>编辑</a>
             <a style={{ color: '#ff4d4f' }} onClick={() => handleDelete(record.key)}>
               删除
@@ -330,6 +382,41 @@ export default function AlarmSettings2() {
         </Radio.Group>
       </Form.Item>
     </Form.Item>
+  )
+
+  const workOrderFormSection = (
+    <>
+      <Form.Item name="generateWorkOrder" valuePropName="checked" style={{ marginBottom: 8 }}>
+        <Checkbox>是否生成工单</Checkbox>
+      </Form.Item>
+      <Alert type="info" showIcon message={WORK_ORDER_TIP} style={{ marginBottom: 12 }} />
+      {generateWorkOrder && (
+        <Form.Item label="工单生成时机" required style={{ marginBottom: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 8,
+              padding: '10px 12px',
+              background: '#fafafa',
+              borderRadius: 6,
+              border: '1px solid #f0f0f0',
+            }}
+          >
+            <span style={{ color: 'rgba(0,0,0,0.88)', lineHeight: '32px' }}>告警后</span>
+            <Form.Item
+              name="workOrderDelayMinutes"
+              noStyle
+              rules={[{ required: true, message: '请输入分钟数' }]}
+            >
+              <InputNumber min={1} max={1440} style={{ width: 88 }} placeholder="5" />
+            </Form.Item>
+            <span style={{ color: 'rgba(0,0,0,0.88)', lineHeight: '32px' }}>分钟生成工单</span>
+          </div>
+        </Form.Item>
+      )}
+    </>
   )
 
   return (
@@ -394,8 +481,8 @@ export default function AlarmSettings2() {
         style={{ padding: '0 16px 16px' }}
       />
       <Modal
-        title={modal === 'add' ? '新增告警设置' : '编辑告警设置'}
-        open={!!modal}
+        title={modal === 'add' ? '新增告警设置' : modal === 'edit' ? '编辑告警设置' : '查看告警设置'}
+        open={!!modal && modal !== 'view'}
         onCancel={() => setModal(null)}
         width={600}
         destroyOnClose
@@ -419,7 +506,7 @@ export default function AlarmSettings2() {
               <Text type="secondary">
                 {modal === 'add'
                   ? '先选设备类别，再选二级子类，可多选（精确到二级子项）'
-                  : '编辑时不可更改设备，仅可调整等级与阈值'}
+                  : '编辑时不可更改设备，可调整等级、阈值与工单生成设置'}
               </Text>
             }
           >
@@ -438,7 +525,42 @@ export default function AlarmSettings2() {
             <Select placeholder="请选择" options={ALARM_LEVELS.map((v) => ({ value: v, label: v }))} />
           </Form.Item>
           {thresholdFormSection}
+          {workOrderFormSection}
         </Form>
+      </Modal>
+      <Modal
+        title="查看告警设置"
+        open={modal === 'view'}
+        onCancel={() => setModal(null)}
+        footer={<Button onClick={() => setModal(null)}>关闭</Button>}
+        width={600}
+      >
+        {viewingRule && (
+          <Descriptions bordered column={1} size="small">
+            <Descriptions.Item label="告警设备">
+              {viewingRule.rootCategory} / {viewingRule.subCategory}
+            </Descriptions.Item>
+            <Descriptions.Item label="子级数量">
+              {getSubCategoryDeviceCount(viewingRule.rootCategory, viewingRule.subCategory)}
+            </Descriptions.Item>
+            <Descriptions.Item label="告警等级">
+              <Tag color={LEVEL_COLORS[viewingRule.level]}>{viewingRule.level}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="告警阈值">{viewingRule.thresholdDisplay}</Descriptions.Item>
+            {viewingRule.thresholdMode === 'deviceTimeout' && (
+              <Descriptions.Item label="离线判定时长">{viewingRule.customMinutes} 分钟</Descriptions.Item>
+            )}
+            <Descriptions.Item label="是否生成工单">
+              {viewingRule.generateWorkOrder ? '是' : '否'}
+            </Descriptions.Item>
+            {viewingRule.generateWorkOrder && (
+              <Descriptions.Item label="工单生成时机">
+                {formatWorkOrderDelayPhrase(viewingRule.workOrderDelayMinutes)}
+              </Descriptions.Item>
+            )}
+            <Descriptions.Item label="创建时间">{viewingRule.createTime}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </>
   )

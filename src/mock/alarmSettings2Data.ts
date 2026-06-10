@@ -27,6 +27,8 @@ export const ALARM_SETTINGS2_DEVICE_CATALOG: Record<string, Record<string, reado
 
 export const ALARM_SETTINGS2_ROOT_CATEGORIES = Object.keys(ALARM_SETTINGS2_DEVICE_CATALOG)
 
+export const DEFAULT_WORK_ORDER_DELAY_MINUTES = 5
+
 export interface AlarmDeviceRule2 {
   key: string
   rootCategory: string
@@ -35,6 +37,10 @@ export interface AlarmDeviceRule2 {
   thresholdMode: ThresholdMode
   customMinutes?: number
   thresholdDisplay: string
+  /** 是否根据本规则自动生成设施工单 */
+  generateWorkOrder: boolean
+  /** 告警产生后延迟多少分钟生成工单（仅 generateWorkOrder=true） */
+  workOrderDelayMinutes?: number
   createTime: string
 }
 
@@ -49,8 +55,20 @@ export interface AlarmSettings2TreeRow {
   childCount?: number
   thresholdDisplay?: string
   level?: string
+  generateWorkOrder?: boolean
+  workOrderDelayMinutes?: number
   createTime?: string
   children?: AlarmSettings2TreeRow[]
+}
+
+export function formatWorkOrderDelayPhrase(minutes?: number) {
+  const value = minutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
+  return `告警后 ${value} 分钟生成工单`
+}
+
+export function formatGenerateWorkOrderDisplay(rule: Pick<AlarmDeviceRule2, 'generateWorkOrder' | 'workOrderDelayMinutes'>) {
+  if (!rule.generateWorkOrder) return '否'
+  return `是（${formatWorkOrderDelayPhrase(rule.workOrderDelayMinutes)}）`
 }
 
 const LEVELS: AlarmLevel[] = ['一级告警', '二级告警', '三级告警', '四级告警']
@@ -86,6 +104,8 @@ function buildInitialRules(): AlarmDeviceRule2[] {
         thresholdMode,
         customMinutes,
         thresholdDisplay: formatThresholdDisplay(thresholdMode, customMinutes),
+        generateWorkOrder: seq % 6 !== 0,
+        workOrderDelayMinutes: seq % 6 !== 0 ? (seq % 3 === 0 ? 10 : DEFAULT_WORK_ORDER_DELAY_MINUTES) : undefined,
         createTime,
       })
     })
@@ -186,6 +206,8 @@ export function buildAlarmSettings2Tree(
         childCount: getSubCategoryDeviceCount(rootCategory, subCategory),
         thresholdDisplay: rule.thresholdDisplay,
         level: rule.level,
+        generateWorkOrder: rule.generateWorkOrder,
+        workOrderDelayMinutes: rule.workOrderDelayMinutes,
         createTime: rule.createTime,
       })
     })
@@ -210,7 +232,13 @@ export function findDeviceRule(rules: AlarmDeviceRule2[], key: string) {
 export function createSubCategoryRule(
   partial: Pick<
     AlarmDeviceRule2,
-    'rootCategory' | 'subCategory' | 'level' | 'thresholdMode' | 'customMinutes'
+    | 'rootCategory'
+    | 'subCategory'
+    | 'level'
+    | 'thresholdMode'
+    | 'customMinutes'
+    | 'generateWorkOrder'
+    | 'workOrderDelayMinutes'
   >,
   keySuffix?: string,
 ): AlarmDeviceRule2 {
@@ -223,6 +251,10 @@ export function createSubCategoryRule(
     thresholdMode: partial.thresholdMode,
     customMinutes: partial.thresholdMode === 'deviceTimeout' ? partial.customMinutes : undefined,
     thresholdDisplay: formatThresholdDisplay(partial.thresholdMode, partial.customMinutes),
+    generateWorkOrder: partial.generateWorkOrder,
+    workOrderDelayMinutes: partial.generateWorkOrder
+      ? (partial.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES)
+      : undefined,
     createTime: now,
   }
 }
@@ -246,7 +278,13 @@ export function ruleToDevicePath(rule: AlarmDeviceRule2): string[] {
 export function createDeviceRule(
   partial: Pick<
     AlarmDeviceRule2,
-    'rootCategory' | 'subCategory' | 'level' | 'thresholdMode' | 'customMinutes'
+    | 'rootCategory'
+    | 'subCategory'
+    | 'level'
+    | 'thresholdMode'
+    | 'customMinutes'
+    | 'generateWorkOrder'
+    | 'workOrderDelayMinutes'
   > & { deviceName?: string },
   keySuffix?: string,
 ): AlarmDeviceRule2 {

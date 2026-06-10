@@ -1,66 +1,66 @@
 import type { AlarmListItem } from '../mock/alarmData'
 import {
-  ALARM_FACILITY_SYNC_DEVICES,
-  ALARM_LEVELS,
+  ALARM_DEVICE_TO_SETTINGS_SUB,
   DEFAULT_TIMEOUT_MINUTES,
   type AlarmDescType,
   type AlarmLevel,
 } from '../pages/alarm/constants'
+import {
+  DEFAULT_WORK_ORDER_DELAY_MINUTES,
+  type AlarmDeviceRule2,
+} from '../mock/alarmSettings2Data'
+import { getAlarmDeviceRules } from './alarmSettingsStore'
 
-/** 告警同步设施工单：可生成的等级与设备范围 */
-export interface AlarmFacilitySyncSettings {
-  levels: AlarmLevel[]
-  devices: string[]
+function parseAlarmTimeMs(time: string) {
+  return new Date(time.replace(/-/g, '/')).getTime()
 }
 
-const defaultAlarmFacilitySyncSettings: AlarmFacilitySyncSettings = {
-  levels: [...ALARM_LEVELS],
-  devices: [...ALARM_FACILITY_SYNC_DEVICES],
+/** 告警已产生时长（分钟） */
+export function getAlarmElapsedMinutes(time: string, now = Date.now()) {
+  const diff = now - parseAlarmTimeMs(time)
+  return Math.max(0, Math.floor(diff / 60000))
 }
 
-const allowedFacilitySyncDevices = new Set<string>(ALARM_FACILITY_SYNC_DEVICES)
-
-let alarmFacilitySyncSettings: AlarmFacilitySyncSettings = {
-  levels: [...defaultAlarmFacilitySyncSettings.levels],
-  devices: [...defaultAlarmFacilitySyncSettings.devices],
-}
-
-const alarmFacilitySyncListeners = new Set<() => void>()
-
-function notifyAlarmFacilitySyncSettings() {
-  alarmFacilitySyncListeners.forEach((fn) => fn())
-}
-
-export function getAlarmFacilitySyncSettings(): AlarmFacilitySyncSettings {
-  return {
-    levels: [...alarmFacilitySyncSettings.levels],
-    devices: alarmFacilitySyncSettings.devices.filter((d) => allowedFacilitySyncDevices.has(d)),
-  }
-}
-
-export function updateAlarmFacilitySyncSettings(settings: AlarmFacilitySyncSettings) {
-  alarmFacilitySyncSettings = {
-    levels: [...settings.levels],
-    devices: settings.devices.filter((d) => allowedFacilitySyncDevices.has(d)),
-  }
-  notifyAlarmFacilitySyncSettings()
-}
-
-export function subscribeAlarmFacilitySyncSettings(listener: () => void) {
-  alarmFacilitySyncListeners.add(listener)
-  return () => {
-    alarmFacilitySyncListeners.delete(listener)
-  }
-}
-
-/** 告警是否满足「生成设施工单」配置（等级 + 至少一个设备命中） */
-export function isAlarmEligibleForFacilitySync(
+/** 按告警设备与等级匹配告警设置规则 */
+export function findMatchingAlarmRule(
   alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
-  settings: AlarmFacilitySyncSettings = getAlarmFacilitySyncSettings(),
-) {
-  if (!settings.levels.includes(alarm.level)) return false
+  rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
+): AlarmDeviceRule2 | undefined {
   const devices = alarm.alarmDevices ?? []
-  return devices.some((d) => settings.devices.includes(d))
+  for (const device of devices) {
+    const mapped = ALARM_DEVICE_TO_SETTINGS_SUB[device]
+    if (!mapped) continue
+    const rule = rules.find(
+      (r) =>
+        r.rootCategory === mapped.rootCategory &&
+        r.subCategory === mapped.subCategory &&
+        r.level === alarm.level,
+    )
+    if (rule) return rule
+  }
+  return undefined
+}
+
+/** 是否存在匹配规则且已开启工单生成 */
+export function isAlarmEligibleForFacilitySync(alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>) {
+  const rule = findMatchingAlarmRule(alarm)
+  return !!rule?.generateWorkOrder
+}
+
+/** 是否已达到规则设定的延迟时长，可生成设施工单 */
+export function isAlarmReadyForFacilitySync(
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices' | 'time'>,
+) {
+  const rule = findMatchingAlarmRule(alarm)
+  if (!rule?.generateWorkOrder) return false
+  const delay = rule.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
+  return getAlarmElapsedMinutes(alarm.time) >= delay
+}
+
+export function getFacilityWorkOrderDelayMinutes(alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>) {
+  const rule = findMatchingAlarmRule(alarm)
+  if (!rule?.generateWorkOrder) return undefined
+  return rule.workOrderDelayMinutes ?? DEFAULT_WORK_ORDER_DELAY_MINUTES
 }
 
 export function getFacilityOrderByAlarmId(alarmId: string) {
@@ -634,7 +634,7 @@ function notifyFacility() {
 }
 
 export function syncAlarmToFacility(alarm: AlarmListItem): boolean {
-  if (!isAlarmEligibleForFacilitySync(alarm)) return false
+  if (!isAlarmReadyForFacilitySync(alarm)) return false
   if (facilityOrders.some((o) => o.alarmId === alarm.id)) return false
   const flow: FacilityFlowRecord[] = [
     {

@@ -50,6 +50,18 @@ export function cascaderPathsToDevices(paths: string[][]): string[] {
 }
 export const DEFAULT_TIMEOUT_MINUTES = 30
 
+/** 告警列表设备名称 → 告警设置二级子类映射 */
+export const ALARM_DEVICE_TO_SETTINGS_SUB: Record<string, { rootCategory: string; subCategory: string }> = {
+  消防主机: { rootCategory: '消防设备', subCategory: '消防主机' },
+  烟感探测器: { rootCategory: '消防设备', subCategory: '烟感器' },
+  温感探测器: { rootCategory: '消防设备', subCategory: '温感器' },
+  防火门: { rootCategory: '消防设备', subCategory: '防火门' },
+  监控摄像头: { rootCategory: '监控设备', subCategory: '监控摄像头' },
+  门禁系统: { rootCategory: '监控设备', subCategory: '门禁系统' },
+  生活水泵: { rootCategory: '供水设备', subCategory: '生活水泵' },
+  消防水泵: { rootCategory: '供水设备', subCategory: '消防水泵' },
+}
+
 export const LEVEL_COLORS: Record<string, string> = {
   一级告警: '#ff4d4f',
   二级告警: '#fa8c16',
