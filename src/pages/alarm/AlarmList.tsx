@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Table, Select, Space, DatePicker, Tag, Modal, Descriptions, message, Button } from 'antd'
 import SearchBar from '../../components/SearchBar'
-import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
+import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
 import {
   findMatchingAlarmRule,
   findWorkOrderGenerationRule,
@@ -13,6 +13,24 @@ import {
   syncEligibleAlarmsToFacility,
 } from '../../store/alarmSync'
 import { subscribeAlarmDeviceRules } from '../../store/alarmSettingsStore'
+
+/** 告警列表筛选用状态（含列表专属「自动解除告警」） */
+const ALARM_LIST_STATUS = [...ALARM_STATUS, '自动解除告警'] as const
+
+const ALARM_STATUS_TAG_COLOR: Record<string, string> = {
+  待处理: 'processing',
+  已处理: 'success',
+  自动解除告警: 'cyan',
+  误报: 'warning',
+  损坏: 'error',
+}
+
+function alarmStatusDetailText(alarm: AlarmListItem) {
+  if (alarm.status === '自动解除告警' || alarm.autoResolved) {
+    return '自动解除告警'
+  }
+  return alarm.status
+}
 
 function facilityOrderLabel(alarm: AlarmListItem) {
   const order = getFacilityOrderByAlarmId(alarm.id)
@@ -105,10 +123,7 @@ export default function AlarmList() {
       title: '告警状态',
       dataIndex: 'status',
       width: 90,
-      render: (v: string) => {
-        const color = v === '待处理' ? 'processing' : v === '已处理' ? 'success' : v === '误报' ? 'warning' : 'error'
-        return <Tag color={color}>{v}</Tag>
-      },
+      render: (v: string) => <Tag color={ALARM_STATUS_TAG_COLOR[v] ?? 'default'}>{v}</Tag>,
     },
     { title: '告警时间', dataIndex: 'time', width: 170 },
     { title: '解除告警时间', dataIndex: 'releaseTime', width: 170, render: (v: string) => v || '-' },
@@ -147,7 +162,7 @@ export default function AlarmList() {
             allowClear
             value={statusFilter}
             onChange={setStatusFilter}
-            options={ALARM_STATUS.map((v) => ({ value: v, label: v }))}
+            options={ALARM_LIST_STATUS.map((v) => ({ value: v, label: v }))}
           />
           <span>告警描述：</span>
           <Select
@@ -185,10 +200,7 @@ export default function AlarmList() {
             <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
             <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
             <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
-            <Descriptions.Item label="告警状态">
-              {detail.status}
-              {detail.autoResolved ? '（设备恢复传输自动解除）' : ''}
-            </Descriptions.Item>
+            <Descriptions.Item label="告警状态">{alarmStatusDetailText(detail)}</Descriptions.Item>
             <Descriptions.Item label="告警时间">{detail.time}</Descriptions.Item>
             <Descriptions.Item label="解除告警时间">{detail.releaseTime || '-'}</Descriptions.Item>
             <Descriptions.Item label="设施工单">{facilityOrderLabel(detail)}</Descriptions.Item>
