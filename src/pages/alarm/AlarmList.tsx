@@ -14,11 +14,12 @@ import {
 } from '../../store/alarmSync'
 import { subscribeAlarmDeviceRules } from '../../store/alarmSettingsStore'
 
-/** 告警列表筛选用状态（含列表专属「自动解除告警」） */
-const ALARM_LIST_STATUS = [...ALARM_STATUS, '自动解除告警'] as const
+/** 告警列表筛选用状态（含列表专属「告警」「自动解除告警」） */
+const ALARM_LIST_STATUS = [...ALARM_STATUS, '告警', '自动解除告警'] as const
 
 const ALARM_STATUS_TAG_COLOR: Record<string, string> = {
   待处理: 'processing',
+  告警: 'blue',
   已处理: 'success',
   自动解除告警: 'cyan',
   误报: 'warning',
@@ -29,12 +30,19 @@ function alarmStatusDetailText(alarm: AlarmListItem) {
   if (alarm.status === '自动解除告警' || alarm.autoResolved) {
     return '自动解除告警'
   }
+  if (alarm.status === '告警' || alarm.noWorkOrder) {
+    return '告警'
+  }
   return alarm.status
 }
 
 function facilityOrderLabel(alarm: AlarmListItem) {
   const order = getFacilityOrderByAlarmId(alarm.id)
   if (order) return `${order.id}（告警同步）`
+
+  if (alarm.status === '告警' || alarm.noWorkOrder) {
+    return '—（不生成工单）'
+  }
 
   if (alarm.status !== '待处理') {
     return '—（仅待处理告警可按规则自动生成）'

@@ -42,7 +42,7 @@ export default function FireDeviceManagement() {
       width: 110,
     },
     {
-      title: '资产分类',
+      title: '资产类型',
       dataIndex: 'ID_资产分类',
       width: 110,
       align: 'center' as const,
@@ -140,9 +140,9 @@ export default function FireDeviceManagement() {
           <Input placeholder="请输入消防设备名称" style={{ width: 180 }} allowClear />
           <span>消防设备编号：</span>
           <Input placeholder="请输入消防设备编号" style={{ width: 180 }} allowClear />
-          <span>资产分类：</span>
+          <span>资产类型：</span>
           <Select
-            placeholder="请选择资产分类"
+            placeholder="请选择资产类型"
             style={{ width: 160 }}
             allowClear
             options={FIRE_DEVICE_ASSET_CATEGORIES.map((v) => ({ value: v, label: v }))}
