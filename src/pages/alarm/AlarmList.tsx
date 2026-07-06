@@ -114,10 +114,10 @@ export default function AlarmList() {
     },
     {
       title: '告警设备',
-      dataIndex: 'alarmDevices',
+      dataIndex: 'alarmDevice',
       width: 160,
       ellipsis: true,
-      render: (v: string[]) => v?.join('、') || '-',
+      render: (v: string) => v || '-',
     },
     {
       title: '安装位置',
@@ -205,7 +205,7 @@ export default function AlarmList() {
             <Descriptions.Item label="告警编号">{detail.id}</Descriptions.Item>
             <Descriptions.Item label="告警名称">{detail.name}</Descriptions.Item>
             <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
-            <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
+            <Descriptions.Item label="告警设备">{detail.alarmDevice || '—'}</Descriptions.Item>
             <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
             <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
             <Descriptions.Item label="告警状态">{alarmStatusDetailText(detail)}</Descriptions.Item>

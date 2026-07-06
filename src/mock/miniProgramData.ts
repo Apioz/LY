@@ -281,13 +281,13 @@ export function addHandledRecord(record: Omit<MiniHandledRecord, 'id'>) {
 }
 
 export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
-  const devices = item.alarmDevices.join('、')
+  const device = item.alarmDevice
   const sla = resolveFacilitySla(item)
   return {
     id: item.id,
     facilityId: item.id,
     type: 'facility',
-    title: `${devices} - ${item.desc}`,
+    title: `${device} - ${item.desc}`,
     status: String(item.miniStatus) === '处理中' ? '待完成' : String(item.miniStatus),
     createTime: item.alarmTime,
     initiator: item.initiator ?? '系统',
@@ -303,7 +303,7 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
             : undefined,
     extra: {
       工单编号: item.id,
-      告警设备: devices,
+      告警设备: device,
       安装位置: item.installLocation,
       告警等级: String(item.level),
       告警描述: String(item.desc),

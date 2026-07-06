@@ -95,7 +95,7 @@ export default function FacilityWorkOrder() {
       rows = rows.filter((r) => resolveFacilitySla(r, undefined, now).displayStatus === applied.status)
     }
     if (applied.level) rows = rows.filter((r) => r.level === applied.level)
-    if (applied.device) rows = rows.filter((r) => r.alarmDevices?.includes(applied.device!))
+    if (applied.device) rows = rows.filter((r) => r.alarmDevice === applied.device)
     if (applied.month) rows = rows.filter((r) => matchMonth(r.alarmTime, applied.month!))
     return rows
   }, [data, statusTab, applied, now])
@@ -106,10 +106,10 @@ export default function FacilityWorkOrder() {
       { title: '工单编号', dataIndex: 'id', width: COL_WIDTH, ellipsis: true },
       {
         title: '告警设备',
-        dataIndex: 'alarmDevices',
+        dataIndex: 'alarmDevice',
         width: COL_WIDTH,
         ellipsis: true,
-        render: (v: string[]) => v?.join('、') || '-',
+        render: (v: string) => v || '-',
       },
       {
         title: '安装位置',
@@ -266,7 +266,7 @@ export default function FacilityWorkOrder() {
               <>
                 <Descriptions bordered column={1} size="small">
                   <Descriptions.Item label="工单编号">{detail.id}</Descriptions.Item>
-                  <Descriptions.Item label="告警设备">{detail.alarmDevices?.join('、')}</Descriptions.Item>
+                  <Descriptions.Item label="告警设备">{detail.alarmDevice || '—'}</Descriptions.Item>
                   <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
                   <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
                   <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>

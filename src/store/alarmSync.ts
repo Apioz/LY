@@ -38,30 +38,24 @@ function findRuleByDeviceAndLevel(
 
 /** 按告警设备与等级匹配告警设置规则（不论是否生成工单） */
 export function findMatchingAlarmRule(
-  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevice'>,
   rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
 ): AlarmDeviceRule2 | undefined {
-  for (const device of alarm.alarmDevices ?? []) {
-    const rule = findRuleByDeviceAndLevel(device, alarm.level, rules)
-    if (rule) return rule
-  }
-  return undefined
+  if (!alarm.alarmDevice) return undefined
+  return findRuleByDeviceAndLevel(alarm.alarmDevice, alarm.level, rules)
 }
 
-/** 匹配已开启「是否生成工单」的规则（任一告警设备命中即可） */
+/** 匹配已开启「是否生成工单」的规则 */
 export function findWorkOrderGenerationRule(
-  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevice'>,
   rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
 ): AlarmDeviceRule2 | undefined {
-  for (const device of alarm.alarmDevices ?? []) {
-    const rule = findRuleByDeviceAndLevel(device, alarm.level, rules)
-    if (rule?.generateWorkOrder) return rule
-  }
-  return undefined
+  const rule = findMatchingAlarmRule(alarm, rules)
+  return rule?.generateWorkOrder ? rule : undefined
 }
 
 export function getFacilityWorkOrderDelayMinutes(
-  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>,
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevice'>,
   rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
 ) {
   const rule = findWorkOrderGenerationRule(alarm, rules)
@@ -71,7 +65,7 @@ export function getFacilityWorkOrderDelayMinutes(
 
 /** 距工单生成时机还剩多少分钟（未开启生成或无规则时返回 undefined） */
 export function getAlarmWorkOrderSyncRemainMinutes(
-  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices' | 'time'>,
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevice' | 'time'>,
 ) {
   const delay = getFacilityWorkOrderDelayMinutes(alarm)
   if (delay === undefined) return undefined
@@ -94,13 +88,13 @@ export function shouldSyncAlarmToFacility(alarm: AlarmListItem) {
 }
 
 /** @deprecated 使用 shouldSyncAlarmToFacility */
-export function isAlarmEligibleForFacilitySync(alarm: Pick<AlarmListItem, 'level' | 'alarmDevices'>) {
+export function isAlarmEligibleForFacilitySync(alarm: Pick<AlarmListItem, 'level' | 'alarmDevice'>) {
   return !!findWorkOrderGenerationRule(alarm)
 }
 
 /** @deprecated 使用 shouldSyncAlarmToFacility */
 export function isAlarmReadyForFacilitySync(
-  alarm: Pick<AlarmListItem, 'level' | 'alarmDevices' | 'time' | 'status'>,
+  alarm: Pick<AlarmListItem, 'level' | 'alarmDevice' | 'time' | 'status'>,
 ) {
   if (alarm.status !== '待处理') return false
   const rule = findWorkOrderGenerationRule(alarm)
@@ -164,7 +158,8 @@ export interface FacilityRepairDraft {
 
 export interface FacilityOrderItem {
   id: string
-  alarmDevices: string[]
+  /** 告警设备（一条工单对应一个设备） */
+  alarmDevice: string
   /** 设备安装位置 */
   installLocation: string
   level: AlarmLevel | string
@@ -266,11 +261,11 @@ function normalizeOrder(o: FacilityOrderItem): FacilityOrderItem {
 const initialFacility: FacilityOrderItem[] = [
   {
     id: 'SG20260601001',
-    alarmDevices: ['消防水泵', '生活水泵'],
+    alarmDevice: '消防水泵',
     installLocation: '双翼大厦地下一层消防泵房',
     level: '三级告警',
     desc: '设备超时',
-    alarmTime: '2026-06-01 11:20:05',
+    alarmTime: '2026-07-05 11:20:05',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -279,7 +274,7 @@ const initialFacility: FacilityOrderItem[] = [
     initiator: '系统',
     flowRecords: [
       {
-        time: '2026-06-01 11:20:05',
+        time: '2026-07-05 11:20:05',
         action: '告警同步生成设施工单',
         operator: '系统',
         detail: '工单状态：待接单',
@@ -289,11 +284,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603006',
-    alarmDevices: ['消防主机', '烟感探测器'],
+    alarmDevice: '消防主机',
     installLocation: '双翼大厦消防控制室',
     level: '一级告警',
     desc: '火灾报警',
-    alarmTime: '2026-06-03 08:12:33',
+    alarmTime: '2026-07-06 08:12:33',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -302,7 +297,7 @@ const initialFacility: FacilityOrderItem[] = [
     initiator: '系统',
     flowRecords: [
       {
-        time: '2026-06-03 08:12:33',
+        time: '2026-07-06 08:12:33',
         action: '告警同步生成设施工单',
         operator: '系统',
         detail: '工单状态：待接单',
@@ -312,34 +307,49 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603007',
-    alarmDevices: ['烟感探测器'],
+    alarmDevice: '烟感探测器',
     installLocation: '森林湾大厦3层消防通道',
     level: '四级告警',
     desc: '火灾报警',
-    alarmTime: '2026-06-02 16:30:22',
-    status: '待处理',
-    miniStatus: '待接单',
-    receiver: '-',
+    alarmTime: '2026-06-20 16:30:22',
+    status: '处理中',
+    miniStatus: '待完成',
+    receiver: '张维修',
+    acceptedAt: '2026-06-21 09:00:00',
+    repairStarted: true,
     source: '告警同步',
     alarmId: 'AL20260601004',
     initiator: '系统',
     flowRecords: [
       {
-        time: '2026-06-02 16:30:22',
+        time: '2026-06-20 16:30:22',
         action: '告警同步生成设施工单',
         operator: '系统',
         detail: '工单状态：待接单',
         fields: [{ label: '工单状态', value: '待接单' }],
       },
+      {
+        time: '2026-06-21 09:00:00',
+        action: '维修人员接单',
+        operator: '张维修',
+        detail: '工单状态：待完成',
+        fields: [{ label: '工单状态', value: '待完成' }],
+      },
+      {
+        time: '2026-06-21 10:30:00',
+        action: '开始维修',
+        operator: '张维修',
+        fields: [{ label: '维修状态', value: '维修进行中' }],
+      },
     ],
   },
   {
     id: 'SG20260603008',
-    alarmDevices: ['电梯设备'],
+    alarmDevice: '电梯设备',
     installLocation: '双翼大厦B栋客梯机房',
     level: '二级告警',
     desc: '故障报警',
-    alarmTime: '2026-06-02 22:15:40',
+    alarmTime: '2026-06-18 22:15:40',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -348,7 +358,7 @@ const initialFacility: FacilityOrderItem[] = [
     initiator: '系统',
     flowRecords: [
       {
-        time: '2026-06-02 22:15:40',
+        time: '2026-06-18 22:15:40',
         action: '告警同步生成设施工单',
         operator: '系统',
         detail: '工单状态：待接单',
@@ -358,11 +368,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603009',
-    alarmDevices: ['防火门'],
+    alarmDevice: '防火门',
     installLocation: '中期大厦2层东侧安全出口',
     level: '二级告警',
     desc: '故障报警',
-    alarmTime: '2026-06-03 09:20:00',
+    alarmTime: '2026-07-05 09:20:00',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -372,13 +382,13 @@ const initialFacility: FacilityOrderItem[] = [
     dispatchNote: '防火门闭门器失效，请尽快到场检修',
     flowRecords: [
       {
-        time: '2026-06-03 09:00:00',
+        time: '2026-07-05 09:00:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         fields: [{ label: '工单状态', value: '待派单' }],
       },
       {
-        time: '2026-06-03 09:20:00',
+        time: '2026-07-05 09:20:00',
         action: '派单',
         operator: '管理员000000',
         detail: '派单工作组：设施维修一组；派单说明：防火门闭门器失效，请尽快到场检修；工单状态：待接单',
@@ -392,11 +402,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603010',
-    alarmDevices: ['温感探测器'],
+    alarmDevice: '温感探测器',
     installLocation: '森林湾大厦地下一层车库',
     level: '三级告警',
     desc: '设备超时',
-    alarmTime: '2026-06-03 10:05:18',
+    alarmTime: '2026-07-04 10:05:18',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -406,13 +416,13 @@ const initialFacility: FacilityOrderItem[] = [
     dispatchNote: '温感探测器通讯超时，需现场排查',
     flowRecords: [
       {
-        time: '2026-06-03 09:45:00',
+        time: '2026-07-04 09:45:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         fields: [{ label: '工单状态', value: '待派单' }],
       },
       {
-        time: '2026-06-03 10:05:18',
+        time: '2026-07-04 10:05:18',
         action: '派单',
         operator: '管理员000000',
         detail: '派单工作组：消防维保组；派单说明：温感探测器通讯超时，需现场排查；工单状态：待接单',
@@ -426,11 +436,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603011',
-    alarmDevices: ['门禁系统'],
+    alarmDevice: '门禁系统',
     installLocation: '双翼大厦主入口门厅',
     level: '四级告警',
     desc: '故障报警',
-    alarmTime: '2026-06-03 11:30:45',
+    alarmTime: '2026-06-15 11:30:45',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -440,13 +450,13 @@ const initialFacility: FacilityOrderItem[] = [
     dispatchNote: '门禁读卡无响应，影响人员进出',
     flowRecords: [
       {
-        time: '2026-06-03 11:10:00',
+        time: '2026-06-15 11:10:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         fields: [{ label: '工单状态', value: '待派单' }],
       },
       {
-        time: '2026-06-03 11:30:45',
+        time: '2026-06-15 11:30:45',
         action: '派单',
         operator: '管理员000000',
         detail: '派单工作组：设施维修二组；派单说明：门禁读卡无响应，影响人员进出；工单状态：待接单',
@@ -460,11 +470,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603012',
-    alarmDevices: ['监控摄像头'],
+    alarmDevice: '监控摄像头',
     installLocation: '中期大厦屋顶设备平台',
     level: '三级告警',
     desc: '故障报警',
-    alarmTime: '2026-06-03 13:18:00',
+    alarmTime: '2026-07-06 10:18:00',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -474,13 +484,13 @@ const initialFacility: FacilityOrderItem[] = [
     dispatchNote: '屋顶监控画面丢失，请检查线路与供电',
     flowRecords: [
       {
-        time: '2026-06-03 13:00:00',
+        time: '2026-07-06 10:00:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         fields: [{ label: '工单状态', value: '待派单' }],
       },
       {
-        time: '2026-06-03 13:18:00',
+        time: '2026-07-06 10:18:00',
         action: '派单',
         operator: '管理员000000',
         detail: '派单工作组：设施维修二组；派单说明：屋顶监控画面丢失，请检查线路与供电；工单状态：待接单',
@@ -494,11 +504,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603013',
-    alarmDevices: ['生活水泵'],
+    alarmDevice: '生活水泵',
     installLocation: '森林湾大厦地下二层生活泵房',
     level: '三级告警',
     desc: '设备超时',
-    alarmTime: '2026-06-03 14:42:11',
+    alarmTime: '2026-06-28 14:42:11',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -508,13 +518,13 @@ const initialFacility: FacilityOrderItem[] = [
     dispatchNote: '生活水泵运行信号异常，请核查控制柜',
     flowRecords: [
       {
-        time: '2026-06-03 14:25:00',
+        time: '2026-06-28 14:25:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         fields: [{ label: '工单状态', value: '待派单' }],
       },
       {
-        time: '2026-06-03 14:42:11',
+        time: '2026-06-28 14:42:11',
         action: '派单',
         operator: '管理员000000',
         detail: '派单工作组：设施维修一组；派单说明：生活水泵运行信号异常，请核查控制柜；工单状态：待接单',
@@ -528,11 +538,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260603014',
-    alarmDevices: ['消防水泵'],
+    alarmDevice: '消防水泵',
     installLocation: '溧阳消防局训练基地泵房',
     level: '一级告警',
     desc: '设备超时',
-    alarmTime: '2026-06-03 15:55:30',
+    alarmTime: '2026-07-06 13:55:30',
     status: '待处理',
     miniStatus: '待接单',
     receiver: '-',
@@ -542,13 +552,13 @@ const initialFacility: FacilityOrderItem[] = [
     dispatchNote: '消防水泵压力低于阈值，需紧急巡检',
     flowRecords: [
       {
-        time: '2026-06-03 15:40:00',
+        time: '2026-07-06 13:40:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         fields: [{ label: '工单状态', value: '待派单' }],
       },
       {
-        time: '2026-06-03 15:55:30',
+        time: '2026-07-06 13:55:30',
         action: '派单',
         operator: '管理员000000',
         detail: '派单工作组：消防维保组；派单说明：消防水泵压力低于阈值，需紧急巡检；工单状态：待接单',
@@ -562,32 +572,39 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260601002',
-    alarmDevices: ['配电柜'],
+    alarmDevice: '配电柜',
     installLocation: '双翼大厦1层配电间',
     level: '二级告警',
     desc: '故障报警',
-    alarmTime: '2026-06-01 09:45:11',
+    alarmTime: '2026-07-05 09:45:11',
     status: '处理中',
     miniStatus: '待完成',
     receiver: '王运维',
-    acceptedAt: '2026-06-01 09:50:00',
+    acceptedAt: '2026-07-05 10:00:00',
+    repairStarted: true,
     source: '告警同步',
     alarmId: 'AL20260601002',
     initiator: '系统',
     flowRecords: [
-      { time: '2026-06-01 09:45:11', action: '告警同步生成设施工单', operator: '系统', fields: [{ label: '工单状态', value: '待接单' }] },
+      { time: '2026-07-05 09:45:11', action: '告警同步生成设施工单', operator: '系统', fields: [{ label: '工单状态', value: '待接单' }] },
       {
-        time: '2026-06-01 09:50:00',
+        time: '2026-07-05 10:00:00',
         action: '维修人员接单',
         operator: '王运维',
         detail: '工单状态：待完成',
         fields: [{ label: '工单状态', value: '待完成' }],
       },
+      {
+        time: '2026-07-05 10:30:00',
+        action: '开始维修',
+        operator: '王运维',
+        fields: [{ label: '维修状态', value: '维修进行中' }],
+      },
     ],
   },
   {
     id: 'SG20260528003',
-    alarmDevices: ['客梯-双翼大厦B栋'],
+    alarmDevice: '客梯-双翼大厦B栋',
     installLocation: '双翼大厦B栋客梯机房',
     level: '一级告警',
     desc: '火灾报警',
@@ -617,7 +634,7 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260520004',
-    alarmDevices: ['喷淋泵'],
+    alarmDevice: '喷淋泵',
     installLocation: '中期大厦地下二层喷淋泵房',
     level: '三级告警',
     desc: '设备超时',
@@ -646,11 +663,11 @@ const initialFacility: FacilityOrderItem[] = [
   },
   {
     id: 'SG20260605005',
-    alarmDevices: ['烟感探测器'],
+    alarmDevice: '烟感探测器',
     installLocation: '森林湾大厦5层走廊',
     level: '二级告警',
     desc: '故障报警',
-    alarmTime: '2026-06-05 10:00:00',
+    alarmTime: '2026-07-06 09:00:00',
     status: '待处理',
     miniStatus: '待派单',
     receiver: '-',
@@ -658,7 +675,7 @@ const initialFacility: FacilityOrderItem[] = [
     initiator: '管理员000000',
     flowRecords: [
       {
-        time: '2026-06-05 10:00:00',
+        time: '2026-07-06 09:00:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
         detail: '工单状态：待派单',
@@ -707,7 +724,7 @@ export function syncAlarmToFacility(alarm: AlarmListItem): boolean {
   facilityOrders = [
     normalizeOrder({
       id: `SG-${alarm.id}`,
-      alarmDevices: alarm.alarmDevices,
+      alarmDevice: alarm.alarmDevice,
       installLocation: alarm.installLocation,
       level: alarm.level,
       desc: alarm.desc,
