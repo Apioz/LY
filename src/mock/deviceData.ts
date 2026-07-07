@@ -38,7 +38,7 @@ export interface FireDeviceRow {
   deviceNo: string
   serialNo?: string
   channelNo: string
-  registerAddress?: string
+  ipAddress?: string
   model?: string
   brand?: string
   bindStatus: string
@@ -58,7 +58,7 @@ export interface MonitorDeviceRow {
   deviceNo: string
   serialNo?: string
   channelNo: string
-  registerAddress?: string
+  ipAddress?: string
   model?: string
   brand?: string
   bindStatus: string
@@ -75,6 +75,7 @@ export const fireDeviceRows: FireDeviceRow[] = [
     deviceName: '空调热水循环泵P-204',
     deviceNo: 'P-204',
     channelNo: '1',
+    ipAddress: '192.168.10.101',
     bindStatus: '已绑定',
     monitorStatus: '在线',
     enableStatus: '未启用',
@@ -87,6 +88,7 @@ export const fireDeviceRows: FireDeviceRow[] = [
     deviceName: '火灾报警控制器',
     deviceNo: 'FAC-001',
     channelNo: '1',
+    ipAddress: '192.168.10.102',
     bindStatus: '已绑定',
     monitorStatus: '在线',
     enableStatus: '未启用',
@@ -120,7 +122,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     deviceNo: 'SZ-007_SZ-007',
     serialNo: 'SZ-007',
     channelNo: '1',
-    registerAddress: '192.168.20.204',
+    ipAddress: '192.168.20.204',
     brand: '海康',
     bindStatus: '已绑定',
     monitorStatus: '正常',
@@ -135,7 +137,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     deviceNo: 'SZ-008_SZ-008',
     serialNo: 'SZ-008',
     channelNo: '1',
-    registerAddress: '192.168.20.205',
+    ipAddress: '192.168.20.205',
     brand: '海康',
     bindStatus: '已绑定',
     monitorStatus: '正常',
@@ -150,7 +152,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     deviceNo: 'SZ-009_SZ-009',
     serialNo: 'SZ-009',
     channelNo: '2',
-    registerAddress: '192.168.20.206',
+    ipAddress: '192.168.20.206',
     brand: '海康',
     bindStatus: '已绑定',
     monitorStatus: '正常',
@@ -165,7 +167,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     deviceNo: 'SZ-010_SZ-010',
     serialNo: 'SZ-010',
     channelNo: '1',
-    registerAddress: '192.168.20.207',
+    ipAddress: '192.168.20.207',
     brand: '大华',
     bindStatus: '已绑定',
     monitorStatus: '正常',
@@ -180,7 +182,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     deviceNo: 'SZ-011_SZ-011',
     serialNo: 'SZ-011',
     channelNo: '1',
-    registerAddress: '192.168.20.208',
+    ipAddress: '192.168.20.208',
     brand: '海康',
     bindStatus: '已绑定',
     monitorStatus: '正常',

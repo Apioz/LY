@@ -72,8 +72,8 @@ export default function FireDeviceManagement() {
       align: 'center' as const,
     },
     {
-      title: '寄存器地址',
-      dataIndex: 'registerAddress',
+      title: 'IP地址',
+      dataIndex: 'ipAddress',
       width: COL_WIDTH,
       render: renderCell,
     },
