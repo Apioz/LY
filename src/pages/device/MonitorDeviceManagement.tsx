@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Table, Select, Input, Space, Button, Row, Col, Card, Statistic } from 'antd'
 import {
   PlusOutlined,
@@ -10,7 +10,13 @@ import {
   FullscreenOutlined,
 } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
-import { monitorDeviceStats, monitorDeviceRows, MONITOR_DEVICE_ASSET_CATEGORIES } from '../../mock/deviceData'
+import DeviceDetailModal, { type DeviceDetailMode } from '../../components/device/DeviceDetailModal'
+import {
+  monitorDeviceStats,
+  monitorDeviceRows as initialMonitorDeviceRows,
+  MONITOR_DEVICE_ASSET_CATEGORIES,
+  type MonitorDeviceRow,
+} from '../../mock/deviceData'
 
 const COL_WIDTH = 120
 
@@ -20,108 +26,125 @@ function renderCell(v?: string) {
 
 export default function MonitorDeviceManagement() {
   const [selected, setSelected] = useState<React.Key[]>([])
+  const [rows, setRows] = useState<MonitorDeviceRow[]>(initialMonitorDeviceRows)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<DeviceDetailMode>('view')
+  const [activeRecord, setActiveRecord] = useState<MonitorDeviceRow | null>(null)
 
-  const columns = [
-    { title: '#', width: 50, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
-    {
-      title: '安装位置',
-      dataIndex: 'location',
-      width: 200,
-      ellipsis: true,
-    },
-    {
-      title: '设备名称',
-      dataIndex: 'deviceName',
-      width: 180,
-      ellipsis: true,
-    },
-    {
-      title: '设备编号',
-      dataIndex: 'deviceNo',
-      width: 150,
-      ellipsis: true,
-    },
-    {
-      title: '资产分类',
-      dataIndex: 'ID_资产分类',
-      width: 110,
-      align: 'center' as const,
-    },
-    {
-      title: '设备类型',
-      dataIndex: 'ID_设备类型',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
-      title: '网络地址',
-      dataIndex: 'networkAddress',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
-      title: '序列号/SN',
-      dataIndex: 'serialNo',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
-      title: '通道号',
-      dataIndex: 'channelNo',
-      width: 80,
-      align: 'center' as const,
-    },
-    {
-      title: 'IP地址',
-      dataIndex: 'ipAddress',
-      width: 140,
-      render: renderCell,
-    },
-    {
-      title: '型号',
-      dataIndex: 'model',
-      width: COL_WIDTH,
-      render: renderCell,
-    },
-    {
-      title: '品牌',
-      dataIndex: 'brand',
-      width: 90,
-      render: renderCell,
-    },
-    {
-      title: '绑定状态',
-      dataIndex: 'bindStatus',
-      width: 90,
-      align: 'center' as const,
-    },
-    {
-      title: '监测状态',
-      dataIndex: 'monitorStatus',
-      width: 90,
-      align: 'center' as const,
-    },
-    {
-      title: '启用状态',
-      dataIndex: 'enableStatus',
-      width: 90,
-      align: 'center' as const,
-    },
-    {
-      title: '操作',
-      width: 300,
-      fixed: 'right' as const,
-      render: () => (
-        <Space size={4} wrap>
-          <a>查看视频</a>
-          <a>编辑</a>
-          <a>查看</a>
-          <a style={{ color: '#ff4d4f' }}>删除</a>
-          <a>确认启用</a>
-        </Space>
-      ),
-    },
-  ]
+  const openModal = (record: MonitorDeviceRow, mode: DeviceDetailMode) => {
+    setActiveRecord(record)
+    setModalMode(mode)
+    setModalOpen(true)
+  }
+
+  const handleSave = (values: MonitorDeviceRow) => {
+    setRows((prev) => prev.map((r) => (r.key === values.key ? values : r)))
+  }
+
+  const columns = useMemo(
+    () => [
+      { title: '#', width: 50, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
+      {
+        title: '安装位置',
+        dataIndex: 'location',
+        width: 200,
+        ellipsis: true,
+      },
+      {
+        title: '设备名称',
+        dataIndex: 'deviceName',
+        width: 180,
+        ellipsis: true,
+      },
+      {
+        title: '设备编号',
+        dataIndex: 'deviceNo',
+        width: 150,
+        ellipsis: true,
+      },
+      {
+        title: '资产类型',
+        dataIndex: 'ID_资产分类',
+        width: 110,
+        align: 'center' as const,
+      },
+      {
+        title: '设备类型',
+        dataIndex: 'ID_设备类型',
+        width: COL_WIDTH,
+        render: renderCell,
+      },
+      {
+        title: '对接地址',
+        dataIndex: 'dockAddress',
+        width: COL_WIDTH,
+        render: renderCell,
+      },
+      {
+        title: '序列号/SN',
+        dataIndex: 'serialNo',
+        width: COL_WIDTH,
+        render: renderCell,
+      },
+      {
+        title: '通道号',
+        dataIndex: 'channelNo',
+        width: 80,
+        align: 'center' as const,
+      },
+      {
+        title: 'IP地址',
+        dataIndex: 'ipAddress',
+        width: 140,
+        render: renderCell,
+      },
+      {
+        title: '型号',
+        dataIndex: 'model',
+        width: COL_WIDTH,
+        render: renderCell,
+      },
+      {
+        title: '品牌',
+        dataIndex: 'brand',
+        width: 90,
+        render: renderCell,
+      },
+      {
+        title: '绑定状态',
+        dataIndex: 'bindStatus',
+        width: 90,
+        align: 'center' as const,
+      },
+      {
+        title: '监测状态',
+        dataIndex: 'monitorStatus',
+        width: 90,
+        align: 'center' as const,
+      },
+      {
+        title: '启用状态',
+        dataIndex: 'enableStatus',
+        width: 90,
+        align: 'center' as const,
+      },
+      {
+        title: '操作',
+        width: 300,
+        fixed: 'right' as const,
+        render: (_: unknown, record: MonitorDeviceRow) => (
+          <Space size={4} wrap>
+            <a>查看视频</a>
+            <a onClick={() => openModal(record, 'edit')}>编辑</a>
+            <a onClick={() => openModal(record, 'view')}>查看</a>
+            <a style={{ color: '#ff4d4f' }}>删除</a>
+            <a>确认启用</a>
+          </Space>
+        ),
+      },
+    ],
+    [],
+  )
 
   return (
     <>
@@ -150,9 +173,9 @@ export default function MonitorDeviceManagement() {
               { value: '异常', label: '异常' },
             ]}
           />
-          <span>资产分类：</span>
+          <span>资产类型：</span>
           <Select
-            placeholder="请选择资产分类"
+            placeholder="请选择资产类型"
             style={{ width: 160 }}
             allowClear
             options={MONITOR_DEVICE_ASSET_CATEGORIES.map((v) => ({ value: v, label: v }))}
@@ -188,7 +211,7 @@ export default function MonitorDeviceManagement() {
         tableLayout="fixed"
         scroll={{ x: COL_WIDTH * 10 + 810 }}
         columns={columns}
-        dataSource={monitorDeviceRows}
+        dataSource={rows}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
         pagination={{
           total: 150,
@@ -199,6 +222,17 @@ export default function MonitorDeviceManagement() {
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         style={{ padding: '0 16px 16px' }}
+      />
+      <DeviceDetailModal
+        kind="monitor"
+        open={modalOpen}
+        mode={modalMode}
+        record={activeRecord}
+        onClose={() => {
+          setModalOpen(false)
+          setActiveRecord(null)
+        }}
+        onSave={handleSave}
       />
     </>
   )

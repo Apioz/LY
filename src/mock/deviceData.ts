@@ -14,8 +14,12 @@ export const monitorDeviceStats = [
 
 import { ALARM_DEVICE_CATEGORIES } from '../pages/alarm/constants'
 
-/** 消防设备资产分类可选值 */
-export const FIRE_DEVICE_ASSET_CATEGORIES = [...ALARM_DEVICE_CATEGORIES['消防设备']] as const
+/** 消防设备资产类型可选值 */
+export const FIRE_DEVICE_ASSET_CATEGORIES = [
+  ...ALARM_DEVICE_CATEGORIES['消防设备'],
+  '消防水泵',
+  '生活水泵',
+] as const
 
 /** 安防监控资产分类可选值 */
 export const MONITOR_DEVICE_ASSET_CATEGORIES = [...ALARM_DEVICE_CATEGORIES['安防监控']] as const
@@ -49,10 +53,12 @@ export interface FireDeviceRow {
 export interface MonitorDeviceRow {
   key: string
   location: string
-  /** 资产分类 */
+  /** 资产类型 */
   ID_资产分类: (typeof MONITOR_DEVICE_ASSET_CATEGORIES)[number]
   /** 设备类型 */
   ID_设备类型?: string
+  /** 对接地址 */
+  dockAddress?: string
   networkAddress?: string
   deviceName: string
   deviceNo: string
@@ -64,31 +70,43 @@ export interface MonitorDeviceRow {
   bindStatus: string
   monitorStatus: string
   enableStatus: string
+  /** 平台账号 */
+  account?: string
+  /** 平台密码 */
+  password?: string
 }
 
 export const fireDeviceRows: FireDeviceRow[] = [
   {
     key: '1',
-    location: '工程楼3F/1F/空调热水循环泵P-204机房',
-    ID_资产分类: '烟感探测器',
-    ID_设备类型: '消防设备',
+    location: '工程楼 / 3F / 空调热水循环泵P-204机房',
+    ID_资产分类: '生活水泵',
+    ID_设备类型: '消防水泵',
+    dockAddress: 'MODBUS-001',
     deviceName: '空调热水循环泵P-204',
     deviceNo: 'P-204',
+    serialNo: 'SN-P204-2024',
     channelNo: '1',
     ipAddress: '192.168.10.101',
+    brand: '格兰富',
+    model: 'CR15-5',
     bindStatus: '已绑定',
     monitorStatus: '在线',
     enableStatus: '未启用',
   },
   {
     key: '2',
-    location: '工程楼2F/消防控制室/主机机柜',
+    location: '工程楼 / 2F / 消防控制室主机机柜',
     ID_资产分类: '消防主机',
-    ID_设备类型: '消防设备',
+    ID_设备类型: '火灾报警控制器',
+    dockAddress: 'FAC-HOST-001',
     deviceName: '火灾报警控制器',
     deviceNo: 'FAC-001',
+    serialNo: 'SN-FAC-001',
     channelNo: '1',
     ipAddress: '192.168.10.102',
+    brand: '海湾',
+    model: 'GST5000',
     bindStatus: '已绑定',
     monitorStatus: '在线',
     enableStatus: '未启用',
@@ -115,15 +133,16 @@ export const fireEventAlarmRows = [
 export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '1',
-    location: '研发实验室5A/1F/南侧大门入口',
+    location: '东楼 / 1F / 东楼室外南-1F-00009',
     ID_资产分类: '监控摄像头',
-    ID_设备类型: '安防监控',
-    deviceName: 'Camera-SKJ-001',
-    deviceNo: 'SZ-007_SZ-007',
-    serialNo: 'SZ-007',
+    ID_设备类型: '枪机',
+    dockAddress: '34020000001320012158',
+    deviceName: '东楼一层南门出入口3',
+    deviceNo: '34020000001320012158_34020000001320012158',
+    serialNo: '34020000001320012158',
     channelNo: '1',
-    ipAddress: '192.168.20.204',
-    brand: '海康',
+    ipAddress: '192.168.12.158',
+    brand: '皓维',
     bindStatus: '已绑定',
     monitorStatus: '正常',
     enableStatus: '未启用',
@@ -133,6 +152,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     location: '研发实验室5A/1F/4号与5号电梯厅中间',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '安防监控',
+    dockAddress: 'SZ-008',
     deviceName: '4号与5号电梯厅中间半球',
     deviceNo: 'SZ-008_SZ-008',
     serialNo: 'SZ-008',
@@ -148,6 +168,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     location: '双翼大厦/1F/主入口门厅',
     ID_资产分类: '门禁系统',
     ID_设备类型: '安防监控',
+    dockAddress: 'SZ-009',
     deviceName: '主入口门禁摄像头',
     deviceNo: 'SZ-009_SZ-009',
     serialNo: 'SZ-009',
@@ -163,6 +184,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     location: '森林湾大厦/B1F/车库通道A',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '安防监控',
+    dockAddress: 'SZ-010',
     deviceName: '车库通道枪机-A12',
     deviceNo: 'SZ-010_SZ-010',
     serialNo: 'SZ-010',
@@ -178,6 +200,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     location: '中期大厦/屋顶/设备平台西侧',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '安防监控',
+    dockAddress: 'SZ-011',
     deviceName: '屋顶监控云台',
     deviceNo: 'SZ-011_SZ-011',
     serialNo: 'SZ-011',
@@ -187,6 +210,70 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
     bindStatus: '已绑定',
     monitorStatus: '正常',
     enableStatus: '未启用',
+  },
+]
+
+export const fireLocationCascaderOptions = [
+  {
+    value: '工程楼',
+    label: '工程楼',
+    children: [
+      {
+        value: '3F',
+        label: '3F',
+        children: [{ value: '空调热水循环泵P-204机房', label: '空调热水循环泵P-204机房' }],
+      },
+      {
+        value: '2F',
+        label: '2F',
+        children: [{ value: '消防控制室主机机柜', label: '消防控制室主机机柜' }],
+      },
+    ],
+  },
+]
+
+export const monitorLocationCascaderOptions = [
+  {
+    value: '东楼',
+    label: '东楼',
+    children: [
+      {
+        value: '1F',
+        label: '1F',
+        children: [
+          { value: '东楼室外南-1F-00009', label: '东楼室外南-1F-00009' },
+          { value: '门卫、消控室', label: '门卫、消控室' },
+          { value: '候梯厅', label: '候梯厅' },
+        ],
+      },
+      {
+        value: 'B1F',
+        label: 'B1F',
+        children: [{ value: '地库消防控制室', label: '地库消防控制室' }],
+      },
+    ],
+  },
+  {
+    value: '研发实验室5A',
+    label: '研发实验室5A',
+    children: [
+      {
+        value: '1F',
+        label: '1F',
+        children: [{ value: '南侧大门入口', label: '南侧大门入口' }],
+      },
+    ],
+  },
+  {
+    value: '双翼大厦',
+    label: '双翼大厦',
+    children: [
+      {
+        value: '1F',
+        label: '1F',
+        children: [{ value: '主入口门厅', label: '主入口门厅' }],
+      },
+    ],
   },
 ]
 
