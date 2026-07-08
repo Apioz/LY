@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Table, Select, Space, DatePicker, Tag, Modal, Descriptions, message, Button } from 'antd'
 import SearchBar from '../../components/SearchBar'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
-import { alarmListData, type AlarmListItem } from '../../mock/alarmData'
+import type { AlarmListItem } from '../../mock/alarmData'
 import {
   findMatchingAlarmRule,
   findWorkOrderGenerationRule,
@@ -12,6 +12,7 @@ import {
   shouldSyncAlarmToFacility,
   syncEligibleAlarmsToFacility,
 } from '../../store/alarmSync'
+import { getAlarmList, subscribeAlarmList } from '../../store/alarmListStore'
 import { subscribeAlarmDeviceRules } from '../../store/alarmSettingsStore'
 
 /** 告警列表筛选用状态（含列表专属「告警」「自动解除告警」） */
@@ -69,7 +70,7 @@ function facilityOrderLabel(alarm: AlarmListItem) {
 }
 
 export default function AlarmList() {
-  const [data] = useState<AlarmListItem[]>(alarmListData)
+  const [data, setData] = useState<AlarmListItem[]>(() => getAlarmList())
   const [levelFilter, setLevelFilter] = useState<string>()
   const [statusFilter, setStatusFilter] = useState<string>()
   const [descFilter, setDescFilter] = useState<string>()
@@ -77,14 +78,16 @@ export default function AlarmList() {
   const [, setTick] = useState(0)
 
   const runFacilitySync = () => {
-    syncEligibleAlarmsToFacility(data)
+    syncEligibleAlarmsToFacility(getAlarmList())
   }
+
+  useEffect(() => subscribeAlarmList(() => setData(getAlarmList())), [])
 
   useEffect(() => {
     runFacilitySync()
   }, [])
 
-  useEffect(() => subscribeAlarmDeviceRules(runFacilitySync), [data])
+  useEffect(() => subscribeAlarmDeviceRules(runFacilitySync), [])
 
   /** 定时复检：待处理告警到达生成时机后自动创建设施工单，并刷新剩余时间展示 */
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function AlarmList() {
       runFacilitySync()
     }, 30000)
     return () => window.clearInterval(timer)
-  }, [data])
+  }, [])
 
   const filtered = data.filter((r) => {
     if (levelFilter && r.level !== levelFilter) return false

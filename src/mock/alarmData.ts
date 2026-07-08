@@ -49,8 +49,36 @@ export const alarmListData: AlarmListItem[] = [
   { id: 'AL20260601003', name: '消防水泵响应超时', level: '三级告警', alarmDevice: '消防水泵', installLocation: '双翼大厦地下一层消防泵房', desc: '设备超时', status: '待处理', time: '2026-06-01 11:20:05' },
   { id: 'AL20260601004', name: '消防通道烟感', level: '四级告警', alarmDevice: '烟感探测器', installLocation: '森林湾大厦3层消防通道', desc: '火灾报警', status: '误报', time: '2026-05-31 16:30:22', releaseTime: '2026-05-31 17:00:00' },
   { id: 'AL20260601005', name: '电梯网关离线', level: '二级告警', alarmDevice: '电梯设备', installLocation: '双翼大厦B栋客梯机房', desc: '故障报警', status: '告警', time: '2026-05-30 22:15:40', noWorkOrder: true },
-  { id: 'AL20260601006', name: '空调机组超时', level: '三级告警', alarmDevice: '配电柜', installLocation: '中期大厦屋顶设备平台', desc: '设备超时', status: '自动解除告警', time: '2026-05-30 14:08:18', releaseTime: '2026-05-30 15:30:00', autoResolved: true },
+  { id: 'AL20260601006', name: '空调机组超时', level: '三级告警', alarmDevice: '配电柜', installLocation: '中期大厦屋顶设备平台', desc: '设备超时', status: '自动解除告警', time: '2026-05-30 14:08:18', releaseTime: '2026-05-30 15:30:00', autoResolved: true, facilityOrderId: 'SG-AL20260601006' },
   { id: 'AL20260601007', name: '配电柜温度超限', level: '二级告警', alarmDevice: '配电柜', installLocation: '双翼大厦2层配电间', desc: '故障报警', status: '告警', time: '2026-06-04 09:15:22', noWorkOrder: true },
+  /** 演示：设备超时类自动解除 + 工单已接单后仍强制关单 */
+  {
+    id: 'AL20260601008',
+    name: '生活水泵响应超时',
+    level: '三级告警',
+    alarmDevice: '生活水泵',
+    installLocation: '森林湾大厦地下二层生活泵房',
+    desc: '设备超时',
+    status: '自动解除告警',
+    time: '2026-06-10 09:00:00',
+    releaseTime: '2026-06-10 11:45:00',
+    autoResolved: true,
+    facilityOrderId: 'SG-AL20260601008',
+  },
+  /** 演示：非超时类（接口推送解除）自动解除 + 工单未接单强制关单 */
+  {
+    id: 'AL20260601009',
+    name: '红外探测器故障恢复',
+    level: '四级告警',
+    alarmDevice: '红外探测器',
+    installLocation: '双翼大厦3层走廊',
+    desc: '故障报警',
+    status: '自动解除告警',
+    time: '2026-06-12 16:20:00',
+    releaseTime: '2026-06-12 16:35:00',
+    autoResolved: true,
+    facilityOrderId: 'SG-AL20260601009',
+  },
 ]
 
 export const realtimeHumanAlarms: RealtimeAlarmItem[] = [

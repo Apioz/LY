@@ -10,6 +10,7 @@ import {
   type AlarmDeviceRule2,
 } from '../mock/alarmSettings2Data'
 import { getAlarmDeviceRules } from './alarmSettingsStore'
+import { canEditFacilityWorkOrderSettings } from './platformUser'
 
 function parseAlarmTimeMs(time: string) {
   return new Date(time.replace(/-/g, '/')).getTime()
@@ -107,16 +108,34 @@ export function getFacilityOrderByAlarmId(alarmId: string) {
   return facilityOrders.find((o) => o.alarmId === alarmId)
 }
 
-/** 中台设施工单展示状态（含超时/逾期衍生状态） */
-export const FACILITY_ORDER_STATUS = [
+/** 中台设施工单状态（业务流程，4 种） */
+export const FACILITY_WORK_ORDER_STATUS = ['待处理', '处理中', '已处理', '损坏'] as const
+export type FacilityWorkOrderStatus = (typeof FACILITY_WORK_ORDER_STATUS)[number]
+
+/** 中台设施工单处理状态（时效/处置跟踪，6 种） */
+export const FACILITY_PROCESS_STATUS = [
   '待处理',
   '超时待处理',
   '处理中',
   '逾期处理中',
+  '损坏待处理',
   '已处理',
-  '损坏',
 ] as const
-export type FacilityOrderStatus = (typeof FACILITY_ORDER_STATUS)[number]
+export type FacilityProcessStatus = (typeof FACILITY_PROCESS_STATUS)[number]
+
+/** 告警自动解除时，关联设施工单强制关单的维修描述 */
+export const AUTO_RESOLVE_REPAIR_NOTE = '系统自动解除报警'
+
+/**
+ * @deprecated 使用 FACILITY_WORK_ORDER_STATUS + FACILITY_PROCESS_STATUS
+ * 工单状态与处理状态对应关系见 resolveFacilityStatusView
+ */
+export const FACILITY_ORDER_STATUS = [
+  ...FACILITY_WORK_ORDER_STATUS,
+  '超时待处理',
+  '逾期处理中',
+] as const
+export type FacilityOrderStatus = FacilityWorkOrderStatus | '超时待处理' | '逾期处理中'
 
 /** 中台存储的基础状态（由小程序状态映射，不含 SLA 衍生状态） */
 export type FacilityOrderBaseStatus = '待处理' | '处理中' | '已处理' | '损坏'
@@ -192,6 +211,11 @@ export interface FacilityOrderItem {
   acceptedAt?: string
 }
 
+/** 工单流转记录（与小程序 flowRecords 同源，store 更新后两端同步） */
+export function getFacilityFlowRecords(order: FacilityOrderItem): FacilityFlowRecord[] {
+  return order.flowRecords ?? []
+}
+
 function nowStr() {
   return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
@@ -206,10 +230,53 @@ function appendMergedFlow(
 ): FacilityFlowRecord[] {
   const t = time ?? nowStr()
   const detail = fields.map((f) => `${f.label}：${f.value}`).join('；')
-  return [...(records ?? []), { time: t, action, operator, detail, fields, images }]
+  const normalizedImages = images?.filter(Boolean)
+  return [
+    ...(records ?? []),
+    {
+      time: t,
+      action,
+      operator,
+      detail,
+      fields,
+      ...(normalizedImages?.length ? { images: normalizedImages } : {}),
+    },
+  ]
+}
+
+function stripDraftFlowRecords(records: FacilityFlowRecord[] | undefined) {
+  return (records ?? []).filter((record) => record.action !== '完成工单暂存')
 }
 
 export type FacilitySubmitNoteLabel = '误报说明' | '维修描述' | '损坏描述'
+
+/** 闭环提交类流转节点（误报 / 维修 / 损坏） */
+export const FACILITY_SUBMIT_FLOW_ACTIONS = ['提交维修', '提交误报', '提交损坏'] as const
+
+/** 从闭环提交流转记录中读取指定字段（与已完成工单展示逻辑一致） */
+export function getFacilityFlowFieldValue(
+  order: FacilityOrderItem,
+  label: string,
+  actions: readonly string[] = FACILITY_SUBMIT_FLOW_ACTIONS,
+): string | undefined {
+  const records = order.flowRecords
+  if (!records?.length) return undefined
+  for (let i = records.length - 1; i >= 0; i--) {
+    const record = records[i]
+    if (!actions.includes(record.action)) continue
+    const field = record.fields?.find((f) => f.label === label)
+    if (field?.value?.trim()) return field.value.trim()
+  }
+  return undefined
+}
+
+/** 到达现场时间：优先现场暂存，否则从闭环提交流转记录解析 */
+export function getFacilityArrivalTime(order: FacilityOrderItem): string | undefined {
+  if (order.onSiteInfo?.arrivalTime?.trim()) {
+    return formatArrivalTime(order.onSiteInfo.arrivalTime)
+  }
+  return getFacilityFlowFieldValue(order, '到达现场时间')
+}
 
 /** 获取小程序提交的描述（优先读持久化字段，兼容从流转记录解析） */
 export function getFacilitySubmitNote(
@@ -223,13 +290,7 @@ export function getFacilitySubmitNote(
         ? order.repairNote
         : order.damageNote
   if (direct?.trim()) return direct.trim()
-  const records = order.flowRecords
-  if (!records?.length) return undefined
-  for (let i = records.length - 1; i >= 0; i--) {
-    const field = records[i].fields?.find((f) => f.label === label)
-    if (field?.value?.trim()) return field.value.trim()
-  }
-  return undefined
+  return getFacilityFlowFieldValue(order, label)
 }
 
 export function platformStatusFromMini(mini: MiniFacilityStatus | string): FacilityOrderBaseStatus {
@@ -257,6 +318,23 @@ function normalizeOrder(o: FacilityOrderItem): FacilityOrderItem {
   const miniStatus = o.miniStatus ? legacyMiniStatus(String(o.miniStatus)) : legacyMiniStatus(String(o.status))
   return { ...o, miniStatus, status: platformStatusFromMini(miniStatus) }
 }
+
+/** 原型演示用维修/损坏现场图片（小程序上传后写入 flowRecords.images，中台同步展示） */
+const MOCK_FLOW_PHOTO_A =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180"><rect fill="#e6f4ff" width="240" height="180"/><text x="50%" y="45%" text-anchor="middle" fill="#1677ff" font-size="16" font-family="sans-serif">维修现场图1</text></svg>',
+  )
+const MOCK_FLOW_PHOTO_B =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180"><rect fill="#f6ffed" width="240" height="180"/><text x="50%" y="45%" text-anchor="middle" fill="#52c41a" font-size="16" font-family="sans-serif">维修现场图2</text></svg>',
+  )
+const MOCK_DAMAGE_PHOTO =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180"><rect fill="#fff2e8" width="240" height="180"/><text x="50%" y="45%" text-anchor="middle" fill="#fa541c" font-size="16" font-family="sans-serif">损坏现场图</text></svg>',
+  )
 
 const initialFacility: FacilityOrderItem[] = [
   {
@@ -622,13 +700,16 @@ const initialFacility: FacilityOrderItem[] = [
         time: '2026-05-29 10:00:00',
         action: '提交维修',
         operator: '李维修',
-        detail: '告警事故判断：维修；到达现场时间：2026-05-29 09:30:00；维修描述：现场复测正常；工单状态：已完成',
+        detail:
+          '告警事故判断：维修；到达现场时间：2026-05-29 09:30:00；维修描述：现场复测正常；上传图片：共2张；工单状态：已完成',
         fields: [
           { label: '告警事故判断', value: '维修' },
           { label: '到达现场时间', value: '2026-05-29 09:30:00' },
           { label: '维修描述', value: '现场复测正常' },
+          { label: '上传图片', value: '共2张' },
           { label: '工单状态', value: '已完成' },
         ],
+        images: [MOCK_FLOW_PHOTO_A, MOCK_FLOW_PHOTO_B],
       },
     ],
   },
@@ -646,18 +727,33 @@ const initialFacility: FacilityOrderItem[] = [
     damageNote: '喷淋泵电机烧毁，需更换配件后复测',
     initiator: '管理员000000',
     flowRecords: [
-      { time: '2026-05-20 08:30:00', action: '手动创建设施工单', operator: '管理员000000', fields: [{ label: '工单状态', value: '待接单' }] },
-      { time: '2026-05-20 09:00:00', action: '维修人员接单', operator: '张工', fields: [{ label: '工单状态', value: '待完成' }] },
+      {
+        time: '2026-05-20 08:30:00',
+        action: '手动创建设施工单',
+        operator: '管理员000000',
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
+      },
+      {
+        time: '2026-05-20 09:00:00',
+        action: '维修人员接单',
+        operator: '张工',
+        fields: [{ label: '工单状态', value: '待完成' }],
+      },
       {
         time: '2026-05-21 14:00:00',
         action: '提交损坏',
         operator: '张工',
-        detail: '告警事故判断：损坏；损坏描述：喷淋泵电机烧毁，需更换配件后复测；工单状态：损坏',
+        detail:
+          '告警事故判断：损坏；到达现场时间：2026-05-21 13:30:00；损坏描述：喷淋泵电机烧毁，需更换配件后复测；上传图片：共1张；工单状态：损坏',
         fields: [
           { label: '告警事故判断', value: '损坏' },
+          { label: '到达现场时间', value: '2026-05-21 13:30:00' },
           { label: '损坏描述', value: '喷淋泵电机烧毁，需更换配件后复测' },
+          { label: '上传图片', value: '共1张' },
           { label: '工单状态', value: '损坏' },
         ],
+        images: [MOCK_DAMAGE_PHOTO],
       },
     ],
   },
@@ -680,6 +776,127 @@ const initialFacility: FacilityOrderItem[] = [
         operator: '管理员000000',
         detail: '工单状态：待派单',
         fields: [{ label: '工单状态', value: '待派单' }],
+      },
+    ],
+  },
+  /** 自动解除告警演示①：设备超时类，工单未接单时被强制关单 */
+  {
+    id: 'SG-AL20260601006',
+    alarmDevice: '配电柜',
+    installLocation: '中期大厦屋顶设备平台',
+    level: '三级告警',
+    desc: '设备超时',
+    alarmTime: '2026-05-30 14:08:18',
+    status: '已处理',
+    miniStatus: '已完成',
+    receiver: '-',
+    source: '告警同步',
+    alarmId: 'AL20260601006',
+    initiator: '系统',
+    repairNote: AUTO_RESOLVE_REPAIR_NOTE,
+    flowRecords: [
+      {
+        time: '2026-05-30 14:08:18',
+        action: '告警同步生成设施工单',
+        operator: '系统',
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
+      },
+      {
+        time: '2026-05-30 15:30:00',
+        action: '告警恢复自动关单',
+        operator: '系统',
+        detail:
+          '告警事故判断：维修；维修描述：系统自动解除报警；工单状态：已完成；解除告警时间：2026-05-30 15:30:00',
+        fields: [
+          { label: '告警事故判断', value: '维修' },
+          { label: '维修描述', value: AUTO_RESOLVE_REPAIR_NOTE },
+          { label: '工单状态', value: '已完成' },
+          { label: '解除告警时间', value: '2026-05-30 15:30:00' },
+        ],
+      },
+    ],
+  },
+  /** 自动解除告警演示②：设备超时类，工单已接单后仍被强制关单 */
+  {
+    id: 'SG-AL20260601008',
+    alarmDevice: '生活水泵',
+    installLocation: '森林湾大厦地下二层生活泵房',
+    level: '三级告警',
+    desc: '设备超时',
+    alarmTime: '2026-06-10 09:00:00',
+    status: '已处理',
+    miniStatus: '已完成',
+    receiver: '王运维',
+    source: '告警同步',
+    alarmId: 'AL20260601008',
+    initiator: '系统',
+    acceptedAt: '2026-06-10 09:30:00',
+    repairNote: AUTO_RESOLVE_REPAIR_NOTE,
+    flowRecords: [
+      {
+        time: '2026-06-10 09:00:00',
+        action: '告警同步生成设施工单',
+        operator: '系统',
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
+      },
+      {
+        time: '2026-06-10 09:30:00',
+        action: '维修人员接单',
+        operator: '王运维',
+        fields: [{ label: '工单状态', value: '待完成' }],
+      },
+      {
+        time: '2026-06-10 11:45:00',
+        action: '告警恢复自动关单',
+        operator: '系统',
+        detail:
+          '告警事故判断：维修；维修描述：系统自动解除报警；工单状态：已完成；解除告警时间：2026-06-10 11:45:00',
+        fields: [
+          { label: '告警事故判断', value: '维修' },
+          { label: '维修描述', value: AUTO_RESOLVE_REPAIR_NOTE },
+          { label: '工单状态', value: '已完成' },
+          { label: '解除告警时间', value: '2026-06-10 11:45:00' },
+        ],
+      },
+    ],
+  },
+  /** 自动解除告警演示③：非超时类（接口推送解除），工单未接单时被强制关单 */
+  {
+    id: 'SG-AL20260601009',
+    alarmDevice: '红外探测器',
+    installLocation: '双翼大厦3层走廊',
+    level: '四级告警',
+    desc: '故障报警',
+    alarmTime: '2026-06-12 16:20:00',
+    status: '已处理',
+    miniStatus: '已完成',
+    receiver: '-',
+    source: '告警同步',
+    alarmId: 'AL20260601009',
+    initiator: '系统',
+    repairNote: AUTO_RESOLVE_REPAIR_NOTE,
+    flowRecords: [
+      {
+        time: '2026-06-12 16:20:00',
+        action: '告警同步生成设施工单',
+        operator: '系统',
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
+      },
+      {
+        time: '2026-06-12 16:35:00',
+        action: '告警恢复自动关单',
+        operator: '系统',
+        detail:
+          '告警事故判断：维修；维修描述：系统自动解除报警；工单状态：已完成；解除告警时间：2026-06-12 16:35:00',
+        fields: [
+          { label: '告警事故判断', value: '维修' },
+          { label: '维修描述', value: AUTO_RESOLVE_REPAIR_NOTE },
+          { label: '工单状态', value: '已完成' },
+          { label: '解除告警时间', value: '2026-06-12 16:35:00' },
+        ],
       },
     ],
   },
@@ -753,19 +970,119 @@ export function syncEligibleAlarmsToFacility(alarms: AlarmListItem[]) {
 }
 
 export function closeFacilityByAlarm(alarmId: string) {
+  forceCloseFacilityByAlarmRecovery(alarmId)
+}
+
+/**
+ * 告警恢复后强制关闭关联设施工单（无论是否有人接单）：
+ * - 工单状态 → 已处理
+ * - 维修描述 → 「系统自动解除报警」
+ */
+export function forceCloseFacilityByAlarmRecovery(
+  alarmId: string,
+  releaseTime?: string,
+  operator = '系统',
+) {
+  const resolvedAt = releaseTime ?? nowStr()
   facilityOrders = facilityOrders.map((o) => {
     if (o.alarmId !== alarmId || o.miniStatus === '已完成') return o
-    const receiver = o.receiver === '-' ? '系统' : o.receiver
     return normalizeOrder({
       ...o,
       miniStatus: '已完成',
-      receiver,
-      flowRecords: appendMergedFlow(o.flowRecords, '告警恢复自动关单', '系统', [
-        { label: '工单状态', value: '已完成' },
-      ]),
+      repairNote: AUTO_RESOLVE_REPAIR_NOTE,
+      falseAlarmNote: undefined,
+      damageNote: undefined,
+      repairDraft: undefined,
+      repairStarted: undefined,
+      onSiteInfo: undefined,
+      acceptedAt: undefined,
+      flowRecords: appendMergedFlow(
+        o.flowRecords,
+        '告警恢复自动关单',
+        operator,
+        [
+          { label: '告警事故判断', value: '维修' },
+          { label: '维修描述', value: AUTO_RESOLVE_REPAIR_NOTE },
+          { label: '工单状态', value: '已完成' },
+          { label: '解除告警时间', value: resolvedAt },
+        ],
+        undefined,
+        resolvedAt,
+      ),
     })
   })
   notifyFacility()
+}
+
+/** 设备/接口侧传入的自动解除信号 */
+export interface AlarmAutoResolveSignal {
+  alarmId: string
+  /** 超时类：设备已恢复数据传输、判定为在线 */
+  deviceBackOnline?: boolean
+  /** 非超时类：设备接口推送的解除告警信息 */
+  externalClearReceived?: boolean
+}
+
+/**
+ * 告警自动解除规则（与告警设置 thresholdMode 联动）：
+ *
+ * 【设备超时类】thresholdMode = deviceTimeout（或告警描述为「设备超时」）
+ * - 触发：设备离线超过设定时长 → 产生超时告警
+ * - 解除：设备再次恢复正常数据传输 → 判定恢复在线 → 自动解除告警
+ *
+ * 【非超时类】thresholdMode = none（第三方/接口推送）
+ * - 触发：由设备接口或第三方推送产生告警
+ * - 解除：设备接口传输「解除告警」信息 → 自动解除告警
+ *
+ * 【关联设施工单】
+ * - 若告警已生成设施工单，无论是否有人接单，均强制关单为「已处理」
+ * - 维修描述固定为「系统自动解除报警」
+ */
+export function isDeviceTimeoutTypeAlarm(
+  alarm: Pick<AlarmListItem, 'desc' | 'level' | 'alarmDevice'>,
+  rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
+): boolean {
+  const rule = findMatchingAlarmRule(alarm, rules)
+  return rule?.thresholdMode === 'deviceTimeout' || alarm.desc === '设备超时'
+}
+
+/** 是否满足自动解除告警条件（告警须为「待处理」） */
+export function shouldAutoResolveAlarm(
+  alarm: AlarmListItem,
+  signal: Pick<AlarmAutoResolveSignal, 'deviceBackOnline' | 'externalClearReceived'>,
+  rules: AlarmDeviceRule2[] = getAlarmDeviceRules(),
+): boolean {
+  if (alarm.status !== '待处理') return false
+  if (isDeviceTimeoutTypeAlarm(alarm, rules)) {
+    return signal.deviceBackOnline === true
+  }
+  return signal.externalClearReceived === true
+}
+
+/** 将告警标记为自动解除（不写 store，由 alarmListStore 持久化） */
+export function applyAlarmAutoResolved(alarm: AlarmListItem, releaseTime = nowStr()): AlarmListItem {
+  return {
+    ...alarm,
+    status: '自动解除告警',
+    autoResolved: true,
+    releaseTime,
+  }
+}
+
+/**
+ * 执行自动解除告警全流程：更新告警态 + 强制关闭关联工单
+ * @returns 更新后的告警；不满足条件时返回 null
+ */
+export function processAlarmAutoResolve(
+  alarm: AlarmListItem,
+  signal: AlarmAutoResolveSignal,
+  releaseTime = nowStr(),
+): AlarmListItem | null {
+  if (!shouldAutoResolveAlarm(alarm, signal)) return null
+  if (getFacilityOrderByAlarmId(alarm.id)) {
+    forceCloseFacilityByAlarmRecovery(alarm.id, releaseTime)
+  }
+  return applyAlarmAutoResolved(alarm, releaseTime)
 }
 
 export function closeFacilityOrder(orderId: string) {
@@ -917,6 +1234,7 @@ function buildSubmitFields(payload: FacilitySubmitPayload, statusLabel: string):
     if (payload.faultReason?.trim()) fields.push({ label: '故障原因', value: payload.faultReason.trim() })
     fields.push({ label: '维修描述', value: payload.note })
   } else if (payload.judgment === '损坏') {
+    if (payload.faultReason?.trim()) fields.push({ label: '故障原因', value: payload.faultReason.trim() })
     fields.push({ label: '损坏描述', value: payload.note })
   }
   if (payload.photos.length) {
@@ -990,11 +1308,23 @@ export function proceedFacilityRepairNextStep(orderId: string, receiver: string,
   notifyFacility()
 }
 
-/** 完成工单暂存：保存草稿，状态不变 */
+/** 完成工单暂存：保存草稿，状态不变；照片写入流转记录供中台同步查看 */
 export function saveFacilityRepairDraft(orderId: string, receiver: string, payload: FacilitySubmitPayload) {
   facilityOrders = facilityOrders.map((o) => {
     if (o.id !== orderId || !canEditRepairOrder(o, receiver) || !isFacilityRepairingStatus(o.miniStatus)) return o
-    return { ...o, repairDraft: toDraft(payload) }
+    const baseRecords = stripDraftFlowRecords(o.flowRecords)
+    const draftNote = payload.note.trim() || '（暂存，待补充）'
+    return normalizeOrder({
+      ...o,
+      repairDraft: toDraft(payload),
+      flowRecords: appendMergedFlow(
+        baseRecords,
+        '完成工单暂存',
+        receiver,
+        buildSubmitFields({ ...payload, note: draftNote }, '待完成'),
+        payload.photos.length > 0 ? payload.photos : undefined,
+      ),
+    })
   })
   notifyFacility()
 }
@@ -1013,7 +1343,7 @@ export function submitFalseAlarmFacilityOrder(orderId: string, receiver: string,
       repairStarted: undefined,
       onSiteInfo: undefined,
       flowRecords: appendMergedFlow(
-        o.flowRecords,
+        stripDraftFlowRecords(o.flowRecords),
         '提交误报',
         receiver,
         buildSubmitFields(payload, '已完成'),
@@ -1038,7 +1368,7 @@ export function submitRepairFacilityOrder(orderId: string, receiver: string, pay
       repairStarted: undefined,
       onSiteInfo: undefined,
       flowRecords: appendMergedFlow(
-        o.flowRecords,
+        stripDraftFlowRecords(o.flowRecords),
         '提交维修',
         receiver,
         buildSubmitFields(payload, '已完成'),
@@ -1064,7 +1394,7 @@ export function submitDamageFacilityOrder(orderId: string, receiver: string, pay
       repairStarted: undefined,
       onSiteInfo: undefined,
       flowRecords: appendMergedFlow(
-        o.flowRecords,
+        stripDraftFlowRecords(o.flowRecords),
         '提交损坏',
         receiver,
         buildSubmitFields(payload, '损坏'),
@@ -1139,6 +1469,9 @@ export function getFacilityWorkOrderSettings() {
 }
 
 export function updateFacilityWorkOrderSettings(patch: Partial<FacilityWorkOrderSettings>) {
+  if (!canEditFacilityWorkOrderSettings()) {
+    throw new Error('无工单设置编辑权限')
+  }
   facilityWorkOrderSettings = { ...facilityWorkOrderSettings, ...patch }
   facilitySettingsListeners.forEach((fn) => fn())
 }
@@ -1158,7 +1491,101 @@ export interface FacilitySlaView {
   days: number
   label: string
   color: FacilitySlaColor
+  /** @deprecated 使用 workOrderStatus + processStatus */
   displayStatus: FacilityOrderStatus
+  /** 工单状态：待处理 / 处理中 / 已处理 / 损坏 */
+  workOrderStatus: FacilityWorkOrderStatus
+  /** 处理状态：6 种，与工单状态一一对应（见 resolveFacilityStatusView） */
+  processStatus: FacilityProcessStatus
+}
+
+/**
+ * 工单状态 ↔ 处理状态 一一对应规则：
+ * | 工单状态 | 条件           | 处理状态     |
+ * | 待处理   | 未超未接单时限 | 待处理       |
+ * | 待处理   | 已超未接单时限 | 超时待处理   |
+ * | 处理中   | 未超完成时限   | 处理中       |
+ * | 处理中   | 已超完成时限   | 逾期处理中   |
+ * | 已处理   | —              | 已处理       |
+ * | 损坏     | 在工单池待接单 | 损坏待处理（不参与未处理超时） |
+ * | 损坏     | 再次接单后处理中 | 逾期处理中（完成逾期规则一致） |
+ */
+export function resolveFacilityStatusView(
+  order: FacilityOrderItem,
+  settings: FacilityWorkOrderSettings = getFacilityWorkOrderSettings(),
+  now = Date.now(),
+): FacilitySlaView {
+  const mini = String(order.miniStatus)
+  const workOrderStatus = platformStatusFromMini(mini) as FacilityWorkOrderStatus
+
+  if (mini === '已完成') {
+    return slaResult('已处理', '已处理', 'none', 0, '—', 'default')
+  }
+  if (mini === '损坏') {
+    // 损坏工单在工单池不参与「未处理超时」；再次接单后走下方 isFacilityRepairingStatus 分支
+    return slaResult('损坏', '损坏待处理', 'none', 0, '—', 'default')
+  }
+  if (mini === '已取消') {
+    return slaResult('待处理', '待处理', 'none', 0, '—', 'default')
+  }
+
+  if (isMiniUnaccepted(mini)) {
+    const created = parseAlarmTimeMs(order.alarmTime)
+    const deadline = created + settings.unhandledTimeoutDays * MS_PER_DAY
+    if (now > deadline) {
+      const days = Math.max(1, Math.ceil((now - deadline) / MS_PER_DAY))
+      return slaResult('待处理', '超时待处理', 'timeout', days, `已超时${days}天`, 'red')
+    }
+    const days = Math.max(0, Math.ceil((deadline - now) / MS_PER_DAY))
+    return slaResult('待处理', '待处理', 'remaining', days, `剩余${days}天`, 'green')
+  }
+
+  if (isFacilityRepairingStatus(mini)) {
+    const acceptedAt = inferAcceptedAt(order) ?? order.alarmTime
+    const accepted = parseAlarmTimeMs(acceptedAt)
+    const deadline = accepted + settings.completionOverdueDays * MS_PER_DAY
+    if (now > deadline) {
+      const days = Math.max(1, Math.ceil((now - deadline) / MS_PER_DAY))
+      return slaResult('处理中', '逾期处理中', 'overdue', days, `已逾期${days}天`, 'orange')
+    }
+    const days = Math.max(0, Math.ceil((deadline - now) / MS_PER_DAY))
+    return slaResult('处理中', '处理中', 'remaining', days, `剩余${days}天`, 'green')
+  }
+
+  return slaResult(workOrderStatus, '待处理', 'none', 0, '—', 'default')
+}
+
+function slaResult(
+  workOrderStatus: FacilityWorkOrderStatus,
+  processStatus: FacilityProcessStatus,
+  state: FacilitySlaState,
+  days: number,
+  label: string,
+  color: FacilitySlaColor,
+): FacilitySlaView {
+  const displayStatus: FacilityOrderStatus =
+    processStatus === '超时待处理'
+      ? '超时待处理'
+      : processStatus === '逾期处理中'
+        ? '逾期处理中'
+        : workOrderStatus
+  return { state, days, label, color, displayStatus, workOrderStatus, processStatus }
+}
+
+/** @deprecated 使用 resolveFacilityStatusView */
+export function resolveFacilitySla(
+  order: FacilityOrderItem,
+  settings: FacilityWorkOrderSettings = getFacilityWorkOrderSettings(),
+  now = Date.now(),
+): FacilitySlaView {
+  return resolveFacilityStatusView(order, settings, now)
+}
+
+export function facilitySlaColorHex(color: FacilitySlaColor) {
+  if (color === 'green') return '#52c41a'
+  if (color === 'red') return '#ff4d4f'
+  if (color === 'orange') return '#fa8c16'
+  return '#999'
 }
 
 function isMiniUnaccepted(mini: string) {
@@ -1175,81 +1602,14 @@ function inferAcceptedAt(order: FacilityOrderItem): string | undefined {
   return undefined
 }
 
-/** 按工单设置计算展示状态与剩余/超时/逾期天数（不改变存储状态） */
-export function resolveFacilitySla(
-  order: FacilityOrderItem,
-  settings: FacilityWorkOrderSettings = getFacilityWorkOrderSettings(),
-  now = Date.now(),
-): FacilitySlaView {
-  const mini = String(order.miniStatus)
-  const base = platformStatusFromMini(mini)
-
-  if (mini === '已完成' || mini === '已取消' || mini === '损坏') {
-    return { state: 'none', days: 0, label: '—', color: 'default', displayStatus: base }
-  }
-
-  if (isMiniUnaccepted(mini)) {
-    const created = parseAlarmTimeMs(order.alarmTime)
-    const deadline = created + settings.unhandledTimeoutDays * MS_PER_DAY
-    if (now > deadline) {
-      const days = Math.max(1, Math.ceil((now - deadline) / MS_PER_DAY))
-      return {
-        state: 'timeout',
-        days,
-        label: `已超时${days}天`,
-        color: 'red',
-        displayStatus: '超时待处理',
-      }
-    }
-    const days = Math.max(0, Math.ceil((deadline - now) / MS_PER_DAY))
-    return {
-      state: 'remaining',
-      days,
-      label: `剩余${days}天`,
-      color: 'green',
-      displayStatus: '待处理',
-    }
-  }
-
-  if (isFacilityRepairingStatus(mini)) {
-    const acceptedAt = inferAcceptedAt(order) ?? order.alarmTime
-    const accepted = parseAlarmTimeMs(acceptedAt)
-    const deadline = accepted + settings.completionOverdueDays * MS_PER_DAY
-    if (now > deadline) {
-      const days = Math.max(1, Math.ceil((now - deadline) / MS_PER_DAY))
-      return {
-        state: 'overdue',
-        days,
-        label: `已逾期${days}天`,
-        color: 'orange',
-        displayStatus: '逾期处理中',
-      }
-    }
-    const days = Math.max(0, Math.ceil((deadline - now) / MS_PER_DAY))
-    return {
-      state: 'remaining',
-      days,
-      label: `剩余${days}天`,
-      color: 'green',
-      displayStatus: '处理中',
-    }
-  }
-
-  return { state: 'none', days: 0, label: '—', color: 'default', displayStatus: base }
-}
-
-export function facilitySlaColorHex(color: FacilitySlaColor) {
-  if (color === 'green') return '#52c41a'
-  if (color === 'red') return '#ff4d4f'
-  if (color === 'orange') return '#fa8c16'
-  return '#999'
-}
-
-function matchesFacilityTab(displayStatus: FacilityOrderStatus, tab: 'processing' | 'unprocessed' | 'processed' | 'damaged') {
-  if (tab === 'unprocessed') return displayStatus === '待处理' || displayStatus === '超时待处理'
-  if (tab === 'processing') return displayStatus === '处理中' || displayStatus === '逾期处理中'
-  if (tab === 'processed') return displayStatus === '已处理'
-  if (tab === 'damaged') return displayStatus === '损坏'
+function matchesFacilityTab(
+  workOrderStatus: FacilityWorkOrderStatus,
+  tab: 'processing' | 'unprocessed' | 'processed' | 'damaged',
+) {
+  if (tab === 'unprocessed') return workOrderStatus === '待处理'
+  if (tab === 'processing') return workOrderStatus === '处理中'
+  if (tab === 'processed') return workOrderStatus === '已处理'
+  if (tab === 'damaged') return workOrderStatus === '损坏'
   return false
 }
 
@@ -1259,6 +1619,15 @@ export function facilityOrderMatchesTab(
   now = Date.now(),
 ) {
   if (tab === 'all') return true
-  const displayStatus = resolveFacilitySla(order, getFacilityWorkOrderSettings(), now).displayStatus
-  return matchesFacilityTab(displayStatus, tab)
+  const { workOrderStatus } = resolveFacilityStatusView(order, getFacilityWorkOrderSettings(), now)
+  return matchesFacilityTab(workOrderStatus, tab)
+}
+
+export function facilityProcessStatusMatchesFilter(
+  order: FacilityOrderItem,
+  processStatus: FacilityProcessStatus,
+  now = Date.now(),
+) {
+  const view = resolveFacilityStatusView(order, getFacilityWorkOrderSettings(), now)
+  return view.processStatus === processStatus
 }

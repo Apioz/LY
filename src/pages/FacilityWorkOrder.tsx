@@ -10,23 +10,31 @@ import {
   Tabs,
   Alert,
   Button,
+  Divider,
+  Typography,
 } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import SearchBar from '../components/SearchBar'
 import FacilityWorkOrderSettingsModal from '../components/FacilityWorkOrderSettingsModal'
+import FacilityFlowTimeline from '../components/FacilityFlowTimeline'
 import {
-  FACILITY_ORDER_STATUS,
+  FACILITY_PROCESS_STATUS,
+  FACILITY_WORK_ORDER_STATUS,
   facilityOrderMatchesTab,
+  facilityProcessStatusMatchesFilter,
   facilitySlaColorHex,
   getFacilityOrders,
+  getFacilityArrivalTime,
   getFacilitySubmitNote,
-  resolveFacilitySla,
+  resolveFacilityStatusView,
   subscribeFacility,
   subscribeFacilityWorkOrderSettings,
   type FacilityOrderItem,
+  type FacilityProcessStatus,
 } from '../store/alarmSync'
+import { canEditFacilityWorkOrderSettings } from '../store/platformUser'
 import { ALARM_LEVELS, ALARM_DEVICES, LEVEL_COLORS } from './alarm/constants'
 
 type StatusTabKey = 'all' | 'processing' | 'unprocessed' | 'processed' | 'damaged'
@@ -39,19 +47,27 @@ const STATUS_TABS: { key: StatusTabKey; label: string }[] = [
   { key: 'damaged', label: '损坏' },
 ]
 
-const statusColor: Record<string, string> = {
+const workOrderStatusColor: Record<string, string> = {
   待处理: 'warning',
-  超时待处理: 'error',
   处理中: 'processing',
-  逾期处理中: 'warning',
   已处理: 'success',
   损坏: 'error',
 }
 
-const COL_WIDTH = 132
+const processStatusColor: Record<string, string> = {
+  待处理: 'default',
+  超时待处理: 'error',
+  处理中: 'processing',
+  逾期处理中: 'warning',
+  损坏待处理: 'error',
+  已处理: 'success',
+}
+
+const COL_WIDTH = 120
 
 interface ListFilters {
-  status?: string
+  workOrderStatus?: string
+  processStatus?: FacilityProcessStatus
   level?: string
   device?: string
   month?: Dayjs | null
@@ -64,14 +80,21 @@ function matchMonth(alarmTime: string, month: Dayjs) {
 export default function FacilityWorkOrder() {
   const [data, setData] = useState<FacilityOrderItem[]>(getFacilityOrders())
   const [statusTab, setStatusTab] = useState<StatusTabKey>('all')
-  const [draftStatus, setDraftStatus] = useState<string>()
+  const [draftWorkOrderStatus, setDraftWorkOrderStatus] = useState<string>()
+  const [draftProcessStatus, setDraftProcessStatus] = useState<FacilityProcessStatus>()
   const [draftLevel, setDraftLevel] = useState<string>()
   const [draftDevice, setDraftDevice] = useState<string>()
   const [draftMonth, setDraftMonth] = useState<Dayjs | null>(null)
   const [applied, setApplied] = useState<ListFilters>({})
-  const [detail, setDetail] = useState<FacilityOrderItem | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [slaTick, setSlaTick] = useState(0)
+  const canEditSettings = canEditFacilityWorkOrderSettings()
+
+  const detail = useMemo(
+    () => (detailId ? data.find((row) => row.id === detailId) ?? null : null),
+    [data, detailId],
+  )
 
   useEffect(() => {
     return subscribeFacility(() => setData([...getFacilityOrders()]))
@@ -91,8 +114,13 @@ export default function FacilityWorkOrder() {
     if (statusTab !== 'all') {
       rows = rows.filter((r) => facilityOrderMatchesTab(r, statusTab, now))
     }
-    if (applied.status) {
-      rows = rows.filter((r) => resolveFacilitySla(r, undefined, now).displayStatus === applied.status)
+    if (applied.workOrderStatus) {
+      rows = rows.filter(
+        (r) => resolveFacilityStatusView(r, undefined, now).workOrderStatus === applied.workOrderStatus,
+      )
+    }
+    if (applied.processStatus) {
+      rows = rows.filter((r) => facilityProcessStatusMatchesFilter(r, applied.processStatus!, now))
     }
     if (applied.level) rows = rows.filter((r) => r.level === applied.level)
     if (applied.device) rows = rows.filter((r) => r.alarmDevice === applied.device)
@@ -129,11 +157,24 @@ export default function FacilityWorkOrder() {
       { title: '告警时间', dataIndex: 'alarmTime', width: COL_WIDTH, ellipsis: true },
       {
         title: '工单状态',
-        width: COL_WIDTH,
+        width: 100,
         align: 'center',
         render: (_v, record) => {
-          const sla = resolveFacilitySla(record, undefined, now)
-          return <Tag color={statusColor[sla.displayStatus] ?? 'default'}>{sla.displayStatus}</Tag>
+          const view = resolveFacilityStatusView(record, undefined, now)
+          return (
+            <Tag color={workOrderStatusColor[view.workOrderStatus] ?? 'default'}>{view.workOrderStatus}</Tag>
+          )
+        },
+      },
+      {
+        title: '处理状态',
+        width: 110,
+        align: 'center',
+        render: (_v, record) => {
+          const view = resolveFacilityStatusView(record, undefined, now)
+          return (
+            <Tag color={processStatusColor[view.processStatus] ?? 'default'}>{view.processStatus}</Tag>
+          )
         },
       },
       {
@@ -141,9 +182,9 @@ export default function FacilityWorkOrder() {
         width: COL_WIDTH,
         align: 'center',
         render: (_v, record) => {
-          const sla = resolveFacilitySla(record, undefined, now)
-          if (sla.label === '—') return '—'
-          return <span style={{ color: facilitySlaColorHex(sla.color), fontWeight: 500 }}>{sla.label}</span>
+          const view = resolveFacilityStatusView(record, undefined, now)
+          if (view.label === '—') return '—'
+          return <span style={{ color: facilitySlaColorHex(view.color), fontWeight: 500 }}>{view.label}</span>
         },
       },
       { title: '接单人', dataIndex: 'receiver', width: COL_WIDTH, ellipsis: true },
@@ -152,7 +193,7 @@ export default function FacilityWorkOrder() {
         width: 80,
         fixed: 'right',
         align: 'center',
-        render: (_v, record) => <a onClick={() => setDetail(record)}>查看</a>,
+        render: (_v, record) => <a onClick={() => setDetailId(record.id)}>查看</a>,
       },
     ],
     [now],
@@ -160,7 +201,8 @@ export default function FacilityWorkOrder() {
 
   const handleSearch = () => {
     setApplied({
-      status: draftStatus,
+      workOrderStatus: draftWorkOrderStatus,
+      processStatus: draftProcessStatus,
       level: draftLevel,
       device: draftDevice,
       month: draftMonth,
@@ -168,7 +210,8 @@ export default function FacilityWorkOrder() {
   }
 
   const handleReset = () => {
-    setDraftStatus(undefined)
+    setDraftWorkOrderStatus(undefined)
+    setDraftProcessStatus(undefined)
     setDraftLevel(undefined)
     setDraftDevice(undefined)
     setDraftMonth(null)
@@ -176,7 +219,7 @@ export default function FacilityWorkOrder() {
     setStatusTab('all')
   }
 
-  const scrollX = COL_WIDTH * 9 + 64 + 80
+  const scrollX = COL_WIDTH * 9 + 64 + 80 + 20
 
   return (
     <>
@@ -185,16 +228,25 @@ export default function FacilityWorkOrder() {
           <span>工单状态：</span>
           <Select
             placeholder="请选择工单状态"
-            style={{ width: 160 }}
+            style={{ width: 140 }}
             allowClear
-            value={draftStatus}
-            onChange={setDraftStatus}
-            options={FACILITY_ORDER_STATUS.map((v) => ({ value: v, label: v }))}
+            value={draftWorkOrderStatus}
+            onChange={setDraftWorkOrderStatus}
+            options={FACILITY_WORK_ORDER_STATUS.map((v) => ({ value: v, label: v }))}
+          />
+          <span>处理状态：</span>
+          <Select
+            placeholder="请选择处理状态"
+            style={{ width: 150 }}
+            allowClear
+            value={draftProcessStatus}
+            onChange={setDraftProcessStatus}
+            options={FACILITY_PROCESS_STATUS.map((v) => ({ value: v, label: v }))}
           />
           <span>告警等级：</span>
           <Select
             placeholder="请选择告警等级"
-            style={{ width: 160 }}
+            style={{ width: 140 }}
             allowClear
             value={draftLevel}
             onChange={setDraftLevel}
@@ -203,7 +255,7 @@ export default function FacilityWorkOrder() {
           <span>告警设备：</span>
           <Select
             placeholder="请选择告警设备"
-            style={{ width: 160 }}
+            style={{ width: 140 }}
             allowClear
             value={draftDevice}
             onChange={setDraftDevice}
@@ -213,7 +265,7 @@ export default function FacilityWorkOrder() {
           <DatePicker
             picker="month"
             placeholder="请选择月份"
-            style={{ width: 160 }}
+            style={{ width: 140 }}
             value={draftMonth}
             onChange={setDraftMonth}
             allowClear
@@ -222,7 +274,7 @@ export default function FacilityWorkOrder() {
       </SearchBar>
       <div style={{ padding: '8px 16px 0', display: 'flex', justifyContent: 'flex-end' }}>
         <Button icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
-          工单设置
+          {canEditSettings ? '工单设置' : '查看工单设置'}
         </Button>
       </div>
       <Tabs
@@ -236,7 +288,7 @@ export default function FacilityWorkOrder() {
         showIcon
         banner
         style={{ margin: '0 16px 12px' }}
-        message="注：损坏状态的工单可被维修人员再次接单，进行维修处理；损坏工单不参与超时/逾期监控；其余规则可在「工单设置」中自定义。"
+        message="工单状态与处理状态对应：待处理→待处理/超时待处理；处理中→处理中/逾期处理中；已处理→已处理；损坏→损坏待处理。损坏工单不参与「未处理超时」监控；再次接单后的「完成逾期」与其他工单一致。"
       />
       <Table
         rowKey="id"
@@ -250,16 +302,17 @@ export default function FacilityWorkOrder() {
       <Modal
         title="工单详情"
         open={!!detail}
-        onCancel={() => setDetail(null)}
-        footer={<Button onClick={() => setDetail(null)}>关闭</Button>}
-        width={600}
+        onCancel={() => setDetailId(null)}
+        footer={<Button onClick={() => setDetailId(null)}>关闭</Button>}
+        width={720}
       >
         {detail &&
           (() => {
-            const sla = resolveFacilitySla(detail, undefined, now)
+            const view = resolveFacilityStatusView(detail, undefined, now)
             const falseAlarmNote = getFacilitySubmitNote(detail, '误报说明')
             const repairNote = getFacilitySubmitNote(detail, '维修描述')
             const damageNote = getFacilitySubmitNote(detail, '损坏描述')
+            const arrivalTime = getFacilityArrivalTime(detail)
             const showSubmitNotes = !!(falseAlarmNote || repairNote || detail.status === '损坏')
 
             return (
@@ -272,14 +325,20 @@ export default function FacilityWorkOrder() {
                   <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
                   <Descriptions.Item label="告警时间">{detail.alarmTime}</Descriptions.Item>
                   <Descriptions.Item label="工单状态">
-                    <Tag color={statusColor[sla.displayStatus] ?? 'default'}>{sla.displayStatus}</Tag>
+                    <Tag color={workOrderStatusColor[view.workOrderStatus] ?? 'default'}>
+                      {view.workOrderStatus}
+                    </Tag>
                   </Descriptions.Item>
-                  {sla.label !== '—' && (
+                  <Descriptions.Item label="处理状态">
+                    <Tag color={processStatusColor[view.processStatus] ?? 'default'}>{view.processStatus}</Tag>
+                  </Descriptions.Item>
+                  {view.label !== '—' && (
                     <Descriptions.Item label="时效状态">
-                      <span style={{ color: facilitySlaColorHex(sla.color), fontWeight: 500 }}>{sla.label}</span>
+                      <span style={{ color: facilitySlaColorHex(view.color), fontWeight: 500 }}>{view.label}</span>
                     </Descriptions.Item>
                   )}
                   <Descriptions.Item label="接单人">{detail.receiver}</Descriptions.Item>
+                  {arrivalTime && <Descriptions.Item label="到达现场时间">{arrivalTime}</Descriptions.Item>}
                   {falseAlarmNote && (
                     <Descriptions.Item label="误报说明">{falseAlarmNote}</Descriptions.Item>
                   )}
@@ -298,6 +357,14 @@ export default function FacilityWorkOrder() {
                     message="误报说明、维修描述、损坏描述由小程序运维人员在完成工单时填写，中台仅可查看。"
                   />
                 )}
+                <Divider style={{ margin: '16px 0' }} />
+                <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>
+                  流转信息
+                </Typography.Title>
+                <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
+                  与小程序同步展示，记录从工单生成到闭环的完整操作过程。
+                </Typography.Paragraph>
+                <FacilityFlowTimeline records={detail.flowRecords} />
               </>
             )
           })()}

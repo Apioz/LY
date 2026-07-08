@@ -34,6 +34,7 @@ export interface AlarmDeviceRule2 {
   rootCategory: string
   subCategory: string
   level: AlarmLevel | string
+  /** 告警阈值：none=第三方/接口推送 | deviceTimeout=设备离线超时（见 alarmSync 自动解除规则） */
   thresholdMode: ThresholdMode
   customMinutes?: number
   thresholdDisplay: string

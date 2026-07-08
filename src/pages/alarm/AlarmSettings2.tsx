@@ -55,6 +55,14 @@ const DEVICE_TIMEOUT_TIP =
   '本系统对设备状态做监控，设备超过设定离线判定时长未响应将被判定为离线并触发设备超时报警。'
 const WORK_ORDER_TIP = '勾选后按「告警后 × 分钟生成工单」规则自动生成设施工单；不勾选则不生成。'
 
+/** 非超时类：设备接口推送解除告警信息时，自动解除告警并关单 */
+const NONE_AUTO_RESOLVE_TIP =
+  '非超时类告警：设备接口传输「解除告警」信息后，系统自动解除该告警；若已生成设施工单，无论是否有人接单，均强制关单为「已处理」，维修描述为「系统自动解除报警」。'
+
+/** 超时类：设备恢复数据传输后判定在线，自动解除告警并关单 */
+const DEVICE_TIMEOUT_AUTO_RESOLVE_TIP =
+  '设备超时类告警：设备触发超时告警后，若再次恢复正常数据传输，判定为设备恢复在线，自动解除告警；若已生成设施工单，无论是否有人接单，均强制关单为「已处理」，维修描述为「系统自动解除报警」。'
+
 const catalogOptions = buildDeviceCatalogCascaderOptions()
 
 function filterRules(
@@ -362,12 +370,16 @@ export default function AlarmSettings2() {
             {thresholdMode === 'none' && (
               <Alert type="info" showIcon message={NONE_THRESHOLD_TIP} style={{ marginTop: 8 }} />
             )}
+            {thresholdMode === 'none' && (
+              <Alert type="warning" showIcon message={NONE_AUTO_RESOLVE_TIP} style={{ marginTop: 8 }} />
+            )}
           </div>
           <div>
             <Radio value="deviceTimeout">设备超时设置</Radio>
             {thresholdMode === 'deviceTimeout' && (
               <>
                 <Alert type="info" showIcon message={DEVICE_TIMEOUT_TIP} style={{ marginTop: 8, marginBottom: 12 }} />
+                <Alert type="warning" showIcon message={DEVICE_TIMEOUT_AUTO_RESOLVE_TIP} style={{ marginBottom: 12 }} />
                 <Form.Item
                   name="customMinutes"
                   label="离线判定时长"
@@ -536,30 +548,37 @@ export default function AlarmSettings2() {
         width={600}
       >
         {viewingRule && (
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="告警设备">
-              {viewingRule.rootCategory} / {viewingRule.subCategory}
-            </Descriptions.Item>
-            <Descriptions.Item label="子级数量">
-              {getSubCategoryDeviceCount(viewingRule.rootCategory, viewingRule.subCategory)}
-            </Descriptions.Item>
-            <Descriptions.Item label="告警等级">
-              <Tag color={LEVEL_COLORS[viewingRule.level]}>{viewingRule.level}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="告警阈值">{viewingRule.thresholdDisplay}</Descriptions.Item>
-            {viewingRule.thresholdMode === 'deviceTimeout' && (
-              <Descriptions.Item label="离线判定时长">{viewingRule.customMinutes} 分钟</Descriptions.Item>
-            )}
-            <Descriptions.Item label="是否生成工单">
-              {viewingRule.generateWorkOrder ? '是' : '否'}
-            </Descriptions.Item>
-            {viewingRule.generateWorkOrder && (
-              <Descriptions.Item label="工单生成时机">
-                {formatWorkOrderDelayPhrase(viewingRule.workOrderDelayMinutes)}
+          <>
+            <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="告警设备">
+                {viewingRule.rootCategory} / {viewingRule.subCategory}
               </Descriptions.Item>
+              <Descriptions.Item label="子级数量">
+                {getSubCategoryDeviceCount(viewingRule.rootCategory, viewingRule.subCategory)}
+              </Descriptions.Item>
+              <Descriptions.Item label="告警等级">
+                <Tag color={LEVEL_COLORS[viewingRule.level]}>{viewingRule.level}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="告警阈值">{viewingRule.thresholdDisplay}</Descriptions.Item>
+              {viewingRule.thresholdMode === 'deviceTimeout' && (
+                <Descriptions.Item label="离线判定时长">{viewingRule.customMinutes} 分钟</Descriptions.Item>
+              )}
+              <Descriptions.Item label="是否生成工单">
+                {viewingRule.generateWorkOrder ? '是' : '否'}
+              </Descriptions.Item>
+              {viewingRule.generateWorkOrder && (
+                <Descriptions.Item label="工单生成时机">
+                  {formatWorkOrderDelayPhrase(viewingRule.workOrderDelayMinutes)}
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="创建时间">{viewingRule.createTime}</Descriptions.Item>
+            </Descriptions>
+            {viewingRule.thresholdMode === 'deviceTimeout' ? (
+              <Alert type="warning" showIcon message={DEVICE_TIMEOUT_AUTO_RESOLVE_TIP} style={{ marginTop: 12 }} />
+            ) : (
+              <Alert type="warning" showIcon message={NONE_AUTO_RESOLVE_TIP} style={{ marginTop: 12 }} />
             )}
-            <Descriptions.Item label="创建时间">{viewingRule.createTime}</Descriptions.Item>
-          </Descriptions>
+          </>
         )}
       </Modal>
     </>

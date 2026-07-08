@@ -3,7 +3,8 @@ import {
   MINI_FACILITY_STATUS,
   type FacilityFlowRecord,
   facilitySlaColorHex,
-  resolveFacilitySla,
+  getFacilityArrivalTime,
+  resolveFacilityStatusView,
   type FacilityOrderItem,
   type MiniFacilityStatus,
 } from '../store/alarmSync'
@@ -282,7 +283,8 @@ export function addHandledRecord(record: Omit<MiniHandledRecord, 'id'>) {
 
 export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
   const device = item.alarmDevice
-  const sla = resolveFacilitySla(item)
+  const view = resolveFacilityStatusView(item)
+  const arrivalTime = getFacilityArrivalTime(item)
   return {
     id: item.id,
     facilityId: item.id,
@@ -315,14 +317,13 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
       ...(item.dispatchGroup ? { 派单工作组: item.dispatchGroup } : {}),
       ...(item.dispatchNote ? { 派单说明: item.dispatchNote } : {}),
       ...(item.onSiteInfo?.faultReason ? { 故障原因: item.onSiteInfo.faultReason } : {}),
-      ...(item.onSiteInfo?.arrivalTime
-        ? { 到达现场时间: item.onSiteInfo.arrivalTime.replace('T', ' ') }
-        : {}),
-      ...(sla.label !== '—'
+      ...(arrivalTime ? { 到达现场时间: arrivalTime } : {}),
+      ...(view.label !== '—'
         ? {
-            时效状态: sla.label,
-            时效颜色: facilitySlaColorHex(sla.color),
-            中台工单状态: sla.displayStatus,
+            时效状态: view.label,
+            时效颜色: facilitySlaColorHex(view.color),
+            中台工单状态: view.workOrderStatus,
+            中台处理状态: view.processStatus,
           }
         : {}),
     },
