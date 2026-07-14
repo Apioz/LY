@@ -99,9 +99,6 @@ export default function MiniProgramApp({ onSwitchToAdmin }: MiniProgramAppProps)
     if (route.page === 'my-orders') return '我的工单'
     if (route.page === 'facility-form') {
       const titles: Record<FacilityFormType, string> = {
-        dispatch: '派单',
-        urge: '催单',
-        revoke: '撤销',
         cancel: '取消接单',
         repairing: '维修中',
         complete: '完成',

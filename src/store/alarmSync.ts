@@ -141,7 +141,7 @@ export type FacilityOrderStatus = FacilityWorkOrderStatus | '超时待处理' | 
 export type FacilityOrderBaseStatus = '待处理' | '处理中' | '已处理' | '损坏'
 
 /** 小程序设施工单展示状态 */
-export const MINI_FACILITY_STATUS = ['待派单', '待接单', '待完成', '已完成', '已取消', '损坏'] as const
+export const MINI_FACILITY_STATUS = ['待接单', '待完成', '已完成', '已取消', '损坏'] as const
 export type MiniFacilityStatus = (typeof MINI_FACILITY_STATUS)[number]
 
 export interface FacilityFlowField {
@@ -294,7 +294,7 @@ export function getFacilitySubmitNote(
 }
 
 export function platformStatusFromMini(mini: MiniFacilityStatus | string): FacilityOrderBaseStatus {
-  if (mini === '待派单' || mini === '待接单' || mini === '已取消') return '待处理'
+  if (mini === '待接单' || mini === '已取消') return '待处理'
   if (mini === '处理中' || mini === '待完成') return '处理中'
   if (mini === '已完成') return '已处理'
   if (mini === '损坏') return '损坏'
@@ -303,6 +303,7 @@ export function platformStatusFromMini(mini: MiniFacilityStatus | string): Facil
 
 function legacyMiniStatus(status: string): MiniFacilityStatus {
   if (status === '待处理') return '待接单'
+  if (status === '待派单') return '待接单'
   if (status === '已处理') return '已完成'
   if (status === '处理中') return '待完成'
   if (MINI_FACILITY_STATUS.includes(status as MiniFacilityStatus)) return status as MiniFacilityStatus
@@ -456,25 +457,13 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
-    dispatchGroup: '设施维修一组',
-    dispatchNote: '防火门闭门器失效，请尽快到场检修',
     flowRecords: [
       {
         time: '2026-07-05 09:00:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        fields: [{ label: '工单状态', value: '待派单' }],
-      },
-      {
-        time: '2026-07-05 09:20:00',
-        action: '派单',
-        operator: '管理员000000',
-        detail: '派单工作组：设施维修一组；派单说明：防火门闭门器失效，请尽快到场检修；工单状态：待接单',
-        fields: [
-          { label: '派单工作组', value: '设施维修一组' },
-          { label: '派单说明', value: '防火门闭门器失效，请尽快到场检修' },
-          { label: '工单状态', value: '待接单' },
-        ],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -490,25 +479,13 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
-    dispatchGroup: '消防维保组',
-    dispatchNote: '温感探测器通讯超时，需现场排查',
     flowRecords: [
       {
         time: '2026-07-04 09:45:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        fields: [{ label: '工单状态', value: '待派单' }],
-      },
-      {
-        time: '2026-07-04 10:05:18',
-        action: '派单',
-        operator: '管理员000000',
-        detail: '派单工作组：消防维保组；派单说明：温感探测器通讯超时，需现场排查；工单状态：待接单',
-        fields: [
-          { label: '派单工作组', value: '消防维保组' },
-          { label: '派单说明', value: '温感探测器通讯超时，需现场排查' },
-          { label: '工单状态', value: '待接单' },
-        ],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -524,25 +501,13 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
-    dispatchGroup: '设施维修二组',
-    dispatchNote: '门禁读卡无响应，影响人员进出',
     flowRecords: [
       {
         time: '2026-06-15 11:10:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        fields: [{ label: '工单状态', value: '待派单' }],
-      },
-      {
-        time: '2026-06-15 11:30:45',
-        action: '派单',
-        operator: '管理员000000',
-        detail: '派单工作组：设施维修二组；派单说明：门禁读卡无响应，影响人员进出；工单状态：待接单',
-        fields: [
-          { label: '派单工作组', value: '设施维修二组' },
-          { label: '派单说明', value: '门禁读卡无响应，影响人员进出' },
-          { label: '工单状态', value: '待接单' },
-        ],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -558,25 +523,13 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
-    dispatchGroup: '设施维修二组',
-    dispatchNote: '屋顶监控画面丢失，请检查线路与供电',
     flowRecords: [
       {
         time: '2026-07-06 10:00:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        fields: [{ label: '工单状态', value: '待派单' }],
-      },
-      {
-        time: '2026-07-06 10:18:00',
-        action: '派单',
-        operator: '管理员000000',
-        detail: '派单工作组：设施维修二组；派单说明：屋顶监控画面丢失，请检查线路与供电；工单状态：待接单',
-        fields: [
-          { label: '派单工作组', value: '设施维修二组' },
-          { label: '派单说明', value: '屋顶监控画面丢失，请检查线路与供电' },
-          { label: '工单状态', value: '待接单' },
-        ],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -592,25 +545,13 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
-    dispatchGroup: '设施维修一组',
-    dispatchNote: '生活水泵运行信号异常，请核查控制柜',
     flowRecords: [
       {
         time: '2026-06-28 14:25:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        fields: [{ label: '工单状态', value: '待派单' }],
-      },
-      {
-        time: '2026-06-28 14:42:11',
-        action: '派单',
-        operator: '管理员000000',
-        detail: '派单工作组：设施维修一组；派单说明：生活水泵运行信号异常，请核查控制柜；工单状态：待接单',
-        fields: [
-          { label: '派单工作组', value: '设施维修一组' },
-          { label: '派单说明', value: '生活水泵运行信号异常，请核查控制柜' },
-          { label: '工单状态', value: '待接单' },
-        ],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -626,25 +567,13 @@ const initialFacility: FacilityOrderItem[] = [
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
-    dispatchGroup: '消防维保组',
-    dispatchNote: '消防水泵压力低于阈值，需紧急巡检',
     flowRecords: [
       {
         time: '2026-07-06 13:40:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        fields: [{ label: '工单状态', value: '待派单' }],
-      },
-      {
-        time: '2026-07-06 13:55:30',
-        action: '派单',
-        operator: '管理员000000',
-        detail: '派单工作组：消防维保组；派单说明：消防水泵压力低于阈值，需紧急巡检；工单状态：待接单',
-        fields: [
-          { label: '派单工作组', value: '消防维保组' },
-          { label: '派单说明', value: '消防水泵压力低于阈值，需紧急巡检' },
-          { label: '工单状态', value: '待接单' },
-        ],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -765,7 +694,7 @@ const initialFacility: FacilityOrderItem[] = [
     desc: '故障报警',
     alarmTime: '2026-07-06 09:00:00',
     status: '待处理',
-    miniStatus: '待派单',
+    miniStatus: '待接单',
     receiver: '-',
     source: '手动',
     initiator: '管理员000000',
@@ -774,8 +703,8 @@ const initialFacility: FacilityOrderItem[] = [
         time: '2026-07-06 09:00:00',
         action: '手动创建设施工单',
         operator: '管理员000000',
-        detail: '工单状态：待派单',
-        fields: [{ label: '工单状态', value: '待派单' }],
+        detail: '工单状态：待接单',
+        fields: [{ label: '工单状态', value: '待接单' }],
       },
     ],
   },
@@ -1099,7 +1028,7 @@ export function closeFacilityOrder(orderId: string) {
   notifyFacility()
 }
 
-/** 派单：待派单 → 待接单 */
+/** @deprecated 已取消派单流程，工单创建后直接进入待接单 */
 export function dispatchFacilityOrder(
   orderId: string,
   group: string,
@@ -1138,7 +1067,7 @@ export function urgeFacilityOrder(orderId: string, note: string, operator: strin
   notifyFacility()
 }
 
-/** 撤销：待派单 → 已取消 */
+/** @deprecated 已取消待派单流程，不再支持撤销派单 */
 export function revokeFacilityOrder(orderId: string, note: string, operator: string) {
   facilityOrders = facilityOrders.map((o) => {
     if (o.id !== orderId || o.miniStatus !== '待派单') return o
@@ -1589,7 +1518,7 @@ export function facilitySlaColorHex(color: FacilitySlaColor) {
 }
 
 function isMiniUnaccepted(mini: string) {
-  return mini === '待派单' || mini === '待接单'
+  return mini === '待接单'
 }
 
 function inferAcceptedAt(order: FacilityOrderItem): string | undefined {

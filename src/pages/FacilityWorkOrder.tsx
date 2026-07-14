@@ -80,7 +80,6 @@ function matchMonth(alarmTime: string, month: Dayjs) {
 export default function FacilityWorkOrder() {
   const [data, setData] = useState<FacilityOrderItem[]>(getFacilityOrders())
   const [statusTab, setStatusTab] = useState<StatusTabKey>('all')
-  const [draftWorkOrderStatus, setDraftWorkOrderStatus] = useState<string>()
   const [draftProcessStatus, setDraftProcessStatus] = useState<FacilityProcessStatus>()
   const [draftLevel, setDraftLevel] = useState<string>()
   const [draftDevice, setDraftDevice] = useState<string>()
@@ -201,7 +200,6 @@ export default function FacilityWorkOrder() {
 
   const handleSearch = () => {
     setApplied({
-      workOrderStatus: draftWorkOrderStatus,
       processStatus: draftProcessStatus,
       level: draftLevel,
       device: draftDevice,
@@ -210,7 +208,6 @@ export default function FacilityWorkOrder() {
   }
 
   const handleReset = () => {
-    setDraftWorkOrderStatus(undefined)
     setDraftProcessStatus(undefined)
     setDraftLevel(undefined)
     setDraftDevice(undefined)
@@ -225,15 +222,6 @@ export default function FacilityWorkOrder() {
     <>
       <SearchBar onSearch={handleSearch} onReset={handleReset} resetLabel="重置">
         <Space wrap size="middle">
-          <span>工单状态：</span>
-          <Select
-            placeholder="请选择工单状态"
-            style={{ width: 140 }}
-            allowClear
-            value={draftWorkOrderStatus}
-            onChange={setDraftWorkOrderStatus}
-            options={FACILITY_WORK_ORDER_STATUS.map((v) => ({ value: v, label: v }))}
-          />
           <span>处理状态：</span>
           <Select
             placeholder="请选择处理状态"

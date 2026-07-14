@@ -60,7 +60,7 @@ export const MINI_TYPE_LABELS: Record<MiniWorkOrderType, string> = {
 }
 
 /** 设施工单全部展示状态（含已取消，用于详情等） */
-export const MINI_FACILITY_LIST_STATUS = ['待派单', '待接单', '待完成', '已完成', '已取消', '损坏'] as const
+export const MINI_FACILITY_LIST_STATUS = ['待接单', '待完成', '已完成', '已取消', '损坏'] as const
 
 export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
   repair: ['待派单', '待审核', '待接单', '报修待完成', '待签字', '待关单', '已关单', '已取消'],
@@ -83,7 +83,7 @@ export const MINI_CANCELLED_STATUS = '已取消'
 export const MINI_LIST_TABS: MiniWorkOrderType[] = ['repair', 'facility', 'maintenance', 'inspection']
 
 /** 工单池可见状态：未接单前全员可见 + 损坏可再次接单 */
-export const FACILITY_POOL_STATUSES: MiniFacilityStatus[] = ['待派单', '待接单', '损坏']
+export const FACILITY_POOL_STATUSES: MiniFacilityStatus[] = ['待接单', '损坏']
 
 export const FACILITY_WORK_GROUPS = ['设施维修一组', '设施维修二组', '消防维保组'] as const
 export const FACILITY_WORKERS: Record<string, string[]> = {

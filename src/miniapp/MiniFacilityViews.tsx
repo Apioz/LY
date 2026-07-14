@@ -2,35 +2,29 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   acceptFacilityOrder,
   cancelAcceptedFacilityOrder,
-  dispatchFacilityOrder,
   getFacilityOrderById,
   holdOnSiteFacilityRepair,
   proceedFacilityRepairNextStep,
-  revokeFacilityOrder,
   startFacilityRepair,
   saveFacilityRepairDraft,
   submitDamageFacilityOrder,
   submitFalseAlarmFacilityOrder,
   submitRepairFacilityOrder,
-  urgeFacilityOrder,
   type IncidentJudgment,
 } from '../store/alarmSync'
 import { MINI_CURRENT_USER } from '../store/miniProgramUser'
 import {
   addHandledRecord,
-  FACILITY_WORK_GROUPS,
-  FACILITY_WORKERS,
   facilityToMiniOrder,
   type MiniWorkOrder,
 } from '../mock/miniProgramData'
 import { EmptyDocIcon } from './MiniIcons'
 
-export type FacilityFormType = 'dispatch' | 'urge' | 'revoke' | 'cancel' | 'repairing' | 'complete'
+export type FacilityFormType = 'cancel' | 'repairing' | 'complete'
 
 const JUDGMENT_OPTIONS: IncidentJudgment[] = ['误报', '维修', '损坏']
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
-  待派单: 'mini-status-pending',
   待接单: 'mini-status-wait',
   待完成: 'mini-status-processing',
   已完成: 'mini-status-done',
@@ -157,13 +151,6 @@ export function MiniFacilityDetail({
 
   const actions = useMemo(() => {
     const s = order.status
-    if (s === '待派单') {
-      return [
-        { key: 'revoke', label: '撤销', form: 'revoke' as const },
-        { key: 'urge', label: '催单', form: 'urge' as const },
-        { key: 'dispatch', label: '派单', form: 'dispatch' as const, primary: true },
-      ]
-    }
     if (s === '待接单' || s === '损坏') {
       return [{ key: 'accept', label: '接单', primary: true }]
     }
@@ -408,8 +395,6 @@ export function MiniFacilityForm({
   onCancel: () => void
 }) {
   const facility = getFacilityOrderById(orderId)
-  const [group, setGroup] = useState<string>(FACILITY_WORK_GROUPS[0])
-  const [worker, setWorker] = useState<string>(FACILITY_WORKERS[FACILITY_WORK_GROUPS[0]][0])
   const [note, setNote] = useState('')
   const [faultReason, setFaultReason] = useState('')
   const [arrivalTime, setArrivalTime] = useState('')
@@ -435,25 +420,12 @@ export function MiniFacilityForm({
     }
   }, [facility, form])
 
-  const titleMap: Record<FacilityFormType, string> = {
-    dispatch: '派单',
-    urge: '催单',
-    revoke: '撤销',
-    cancel: '取消接单',
-    repairing: '维修中',
-    complete: '完成',
-  }
-
   const sectionMap: Record<FacilityFormType, string> = {
-    dispatch: '派单处理',
-    urge: '催单提醒',
-    revoke: '撤销审批',
     cancel: '取消接单',
     repairing: '维修中',
     complete: '完成工单',
   }
 
-  const workers = FACILITY_WORKERS[group] ?? []
   const showJudgment = form === 'complete' && !!arrivalTime.trim()
   const fromRepairStep = !!facility?.onSiteInfo?.arrivalTime || facility?.repairDraft?.judgment === '维修'
 
@@ -541,34 +513,20 @@ export function MiniFacilityForm({
   }
 
   const handleConfirm = () => {
-    if (!facility) return
+    if (!facility || form !== 'cancel') return
     const op = MINI_CURRENT_USER
-
-    if (form === 'dispatch') {
-      if (!group || !worker) return alert('请选择工作组和处理人员')
-      dispatchFacilityOrder(orderId, group, worker, note, op)
-    } else if (form === 'urge') {
-      if (!note.trim()) return alert('请输入催单说明')
-      urgeFacilityOrder(orderId, note, op)
-    } else if (form === 'revoke') {
-      if (!note.trim()) return alert('请输入撤销说明')
-      revokeFacilityOrder(orderId, note, op)
-    } else if (form === 'cancel') {
-      if (!note.trim()) return alert('请输入取消说明')
-      cancelAcceptedFacilityOrder(orderId, op, note)
-      addHandledRecord({
-        orderId,
-        type: 'facility',
-        action: '取消接单',
-        title: facility.alarmDevice + ' - ' + facility.desc,
-        time: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        status: '已取消接单',
-        detail: note.trim(),
-        operator: op,
-      })
-    } else {
-      return
-    }
+    if (!note.trim()) return alert('请输入取消说明')
+    cancelAcceptedFacilityOrder(orderId, op, note)
+    addHandledRecord({
+      orderId,
+      type: 'facility',
+      action: '取消接单',
+      title: facility.alarmDevice + ' - ' + facility.desc,
+      time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      status: '已取消接单',
+      detail: note.trim(),
+      operator: op,
+    })
     onDone()
   }
 
@@ -604,51 +562,12 @@ export function MiniFacilityForm({
       )}
       <div className="mini-detail-card mini-form-body">
         {form === 'complete' && <div className="mini-detail-section-title">维修填报</div>}
-        {form === 'dispatch' && (
+        {form === 'cancel' && (
           <>
-            <div className="mini-form-label required">处理人员</div>
-            <div className="mini-form-picker-row">
-              <select
-                className="mini-form-select"
-                value={group}
-                onChange={(e) => {
-                  setGroup(e.target.value)
-                  setWorker(FACILITY_WORKERS[e.target.value]?.[0] ?? '')
-                }}
-              >
-                {FACILITY_WORK_GROUPS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-              <select className="mini-form-select" value={worker} onChange={(e) => setWorker(e.target.value)}>
-                {workers.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mini-form-label">派单说明</div>
+            <div className="mini-form-label required">取消说明</div>
             <textarea
               className="mini-form-textarea"
-              placeholder="请输入派单说明（选填）"
-              maxLength={500}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <div className="mini-form-count">{note.length}/500</div>
-          </>
-        )}
-        {(form === 'urge' || form === 'revoke' || form === 'cancel') && (
-          <>
-            <div className="mini-form-label required">
-              {form === 'urge' ? '催单说明' : form === 'revoke' ? '撤销说明' : '取消说明'}
-            </div>
-            <textarea
-              className="mini-form-textarea"
-              placeholder={`请输入${titleMap[form]}说明`}
+              placeholder="请输入取消说明"
               maxLength={500}
               value={note}
               onChange={(e) => setNote(e.target.value)}
