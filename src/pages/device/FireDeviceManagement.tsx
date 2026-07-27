@@ -18,6 +18,7 @@ import {
   FIRE_DEVICE_ASSET_CATEGORIES,
   type FireDeviceRow,
 } from '../../mock/deviceData'
+import { COMMUNITIES, matchesCommunityName } from '../../constants/communities'
 
 const COL_WIDTH = 120
 
@@ -28,6 +29,7 @@ function renderCell(v?: string) {
 export default function FireDeviceManagement() {
   const [selected, setSelected] = useState<React.Key[]>([])
   const [rows, setRows] = useState<FireDeviceRow[]>(initialFireDeviceRows)
+  const [communityFilter, setCommunityFilter] = useState<string>()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<DeviceDetailMode>('view')
   const [activeRecord, setActiveRecord] = useState<FireDeviceRow | null>(null)
@@ -38,9 +40,20 @@ export default function FireDeviceManagement() {
     setModalOpen(true)
   }
 
+  const filteredRows = useMemo(
+    () => (communityFilter ? rows.filter((r) => matchesCommunityName(r.community, communityFilter)) : rows),
+    [rows, communityFilter],
+  )
+
   const columns = useMemo(
     () => [
       { title: '#', width: 50, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
+      {
+        title: '小区名称',
+        dataIndex: 'community',
+        width: 120,
+        ellipsis: true,
+      },
       {
         title: '安装位置',
         dataIndex: 'location',
@@ -151,8 +164,17 @@ export default function FireDeviceManagement() {
           </Col>
         ))}
       </Row>
-      <SearchBar onSearch={() => {}} onReset={() => {}} resetLabel="重置">
+      <SearchBar onSearch={() => {}} onReset={() => setCommunityFilter(undefined)} resetLabel="重置">
         <Space wrap>
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 180 }}
+            allowClear
+            value={communityFilter}
+            onChange={setCommunityFilter}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+          />
           <span>空间位置：</span>
           <Select placeholder="请选择空间位置" style={{ width: 180 }} allowClear />
           <span>消防设备名称：</span>
@@ -196,7 +218,7 @@ export default function FireDeviceManagement() {
         tableLayout="fixed"
         scroll={{ x: COL_WIDTH * 10 + 730 }}
         columns={columns}
-        dataSource={rows}
+        dataSource={filteredRows}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
         pagination={{
           total: rows.length,

@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react'
-import { Radio, DatePicker, Row, Col, Card, Modal, message, Space, Button, Statistic, List, Tag } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
+import { Radio, DatePicker, Row, Col, Card, Modal, message, Space, Button, Statistic, List, Tag, Select } from 'antd'
 import { RightOutlined, WarningOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   realtimeHumanAlarms,
   realtimeTechAlarms,
-  getKpiCards,
-  getLevelDistributionFour,
-  getTrendData,
+  filterAlarmsByCommunities,
+  getCommunityFilterRatio,
+  getCommunityAlarmStats,
+  getKpiCardsFromAlarms,
+  getLevelDistributionFromAlarms,
+  getTrendDataScaled,
 } from '../../mock/alarmData'
+import { getAlarmList, subscribeAlarmList } from '../../store/alarmListStore'
+import { COMMUNITIES } from '../../constants/communities'
 import { LEVEL_COLORS } from './constants'
 
 const LEVEL_WARN_COLORS: Record<number, string> = {
@@ -29,19 +34,34 @@ export default function AlarmStatistics() {
   const [period, setPeriod] = useState<'day' | 'month' | 'year'>('month')
   const [date, setDate] = useState<Dayjs>(dayjs('2025-01'))
   const [defense, setDefense] = useState<'人防数据' | '技防数据'>('技防数据')
+  const [communityFilter, setCommunityFilter] = useState<string[]>([])
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [alarms, setAlarms] = useState(() => getAlarmList())
 
-  const kpiCards = useMemo(() => getKpiCards(period), [period])
+  useEffect(() => subscribeAlarmList(() => setAlarms(getAlarmList())), [])
+
+  const filteredAlarms = useMemo(
+    () => filterAlarmsByCommunities(alarms, communityFilter),
+    [alarms, communityFilter],
+  )
+  const ratio = useMemo(
+    () => getCommunityFilterRatio(alarms, communityFilter),
+    [alarms, communityFilter],
+  )
+
+  const kpiCards = useMemo(
+    () => getKpiCardsFromAlarms(filteredAlarms, period === 'day' ? 'day' : period === 'year' ? 'year' : 'month'),
+    [filteredAlarms, period],
+  )
   const trendRange = periodToTrendRange(period)
   const realtimeList = defense === '人防数据' ? realtimeHumanAlarms : realtimeTechAlarms
   const detailItem = realtimeList.find((a) => a.id === detailId)
 
   const levelChart = useMemo(() => {
-    const factor = period === 'day' ? 0.3 : period === 'year' ? 3 : 1
-    const data = getLevelDistributionFour().map((d) => ({
-      ...d,
-      value: +(d.value * factor).toFixed(1),
-    }))
+    const data =
+      filteredAlarms.length > 0
+        ? getLevelDistributionFromAlarms(filteredAlarms)
+        : getLevelDistributionFromAlarms(alarms).map((d) => ({ ...d, value: 0 }))
     return {
       tooltip: { trigger: 'item' },
       legend: { orient: 'vertical', right: 20, top: 'center' },
@@ -59,10 +79,10 @@ export default function AlarmStatistics() {
         },
       ],
     }
-  }, [period])
+  }, [filteredAlarms, alarms])
 
   const trendChart = useMemo(() => {
-    const { x, data } = getTrendData(trendRange)
+    const { x, data } = getTrendDataScaled(trendRange, ratio)
     return {
       tooltip: { trigger: 'axis' },
       grid: { left: 48, right: 24, top: 24, bottom: trendRange === 'month' ? 48 : 32 },
@@ -83,7 +103,29 @@ export default function AlarmStatistics() {
         },
       ],
     }
-  }, [trendRange])
+  }, [trendRange, ratio])
+
+  const communityChart = useMemo(() => {
+    const data = getCommunityAlarmStats(filteredAlarms)
+    return {
+      tooltip: { trigger: 'axis' },
+      grid: { left: 48, right: 16, top: 24, bottom: 64 },
+      xAxis: {
+        type: 'category',
+        data: data.map((d) => d.name),
+        axisLabel: { interval: 0, rotate: 30 },
+      },
+      yAxis: { type: 'value', minInterval: 1 },
+      series: [
+        {
+          type: 'bar',
+          data: data.map((d) => d.value),
+          itemStyle: { color: '#1890ff' },
+          barMaxWidth: 36,
+        },
+      ],
+    }
+  }, [filteredAlarms])
 
   const pickerMode = period === 'day' ? 'date' : period === 'month' ? 'month' : 'year'
   const dateFormat = period === 'day' ? 'YYYY-MM-DD' : period === 'month' ? 'YYYY.MM' : 'YYYY'
@@ -94,6 +136,17 @@ export default function AlarmStatistics() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>告警统计</span>
           <Space wrap>
+            <span>小区名称：</span>
+            <Select
+              mode="multiple"
+              placeholder="全部小区"
+              style={{ minWidth: 200, maxWidth: 360 }}
+              allowClear
+              maxTagCount="responsive"
+              value={communityFilter}
+              onChange={setCommunityFilter}
+              options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+            />
             <Radio.Group value={defense} onChange={(e) => setDefense(e.target.value)}>
               <Radio.Button value="人防数据">人防数据</Radio.Button>
               <Radio.Button value="技防数据">技防数据</Radio.Button>
@@ -120,6 +173,14 @@ export default function AlarmStatistics() {
           </Col>
         ))}
       </Row>
+
+      <Card
+        title={communityFilter.length ? `各小区告警统计（已选 ${communityFilter.length} 个小区）` : '各小区告警统计'}
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
+        <ReactECharts option={communityChart} style={{ height: 260 }} />
+      </Card>
 
       <Row gutter={16}>
         <Col span={16}>

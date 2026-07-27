@@ -2,6 +2,7 @@ import { Space, Button } from 'antd'
 import {
   PlusOutlined,
   DeleteOutlined,
+  PrinterOutlined,
   ReloadOutlined,
   ColumnHeightOutlined,
   SearchOutlined,
@@ -12,10 +13,13 @@ import {
 interface TableToolbarProps {
   showAdd?: boolean
   showBatchDelete?: boolean
+  showBatchPrintQr?: boolean
   showExport?: boolean
   deleteLabel?: string
+  batchPrintQrLabel?: string
   onAdd?: () => void
   onBatchDelete?: () => void
+  onBatchPrintQr?: () => void
   selectedCount?: number
   onClearSelection?: () => void
 }
@@ -23,10 +27,13 @@ interface TableToolbarProps {
 export default function TableToolbar({
   showAdd = true,
   showBatchDelete = true,
+  showBatchPrintQr = false,
   showExport = false,
   deleteLabel = '批量删除',
+  batchPrintQrLabel = '批量打印二维码',
   onAdd,
   onBatchDelete,
+  onBatchPrintQr,
   selectedCount = 0,
   onClearSelection,
 }: TableToolbarProps) {
@@ -51,6 +58,11 @@ export default function TableToolbar({
               {deleteLabel}
             </Button>
           )}
+          {showBatchPrintQr && (
+            <Button icon={<PrinterOutlined />} onClick={onBatchPrintQr} disabled={selectedCount === 0}>
+              {batchPrintQrLabel}
+            </Button>
+          )}
           {showExport && (
             <Button style={{ color: '#fa8c16', borderColor: '#fa8c16' }} icon={<ExportOutlined />}>
               导出
@@ -64,7 +76,7 @@ export default function TableToolbar({
           <Button type="text" icon={<FullscreenOutlined />} />
         </Space>
       </div>
-      {selectedCount >= 0 && showBatchDelete && (
+      {selectedCount >= 0 && (showBatchDelete || showBatchPrintQr) && (
         <div
           style={{
             margin: '0 16px 8px',

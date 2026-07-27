@@ -15,8 +15,8 @@ export function InspectionCalendar() {
   return (
     <div style={{ padding: 16 }}>
       <Space style={{ marginBottom: 16 }}>
-        <span>地块名称：</span>
-        <Select placeholder="请选择地块名称" style={{ width: 200 }} allowClear />
+        <span>小区名称：</span>
+        <Select placeholder="请选择小区名称" style={{ width: 200 }} allowClear />
       </Space>
       <Calendar
         cellRender={(date) => {
@@ -64,7 +64,7 @@ export function AcceptanceWorkOrder() {
     { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
     { title: '验收编号', dataIndex: 'id' },
     { title: '检查名称', dataIndex: 'name' },
-    { title: '地块名称', dataIndex: 'plot' },
+    { title: '小区名称', dataIndex: 'plot' },
     { title: '验收人', dataIndex: 'acceptor' },
     { title: '验收时间', dataIndex: 'time' },
     { title: '验收状态', dataIndex: 'status' },
@@ -75,8 +75,8 @@ export function AcceptanceWorkOrder() {
     <>
       <SearchBar onSearch={() => {}} onReset={() => {}}>
         <Space wrap>
-          <span>地块名称：</span>
-          <Select placeholder="请选择地块名称" style={{ width: 180 }} allowClear />
+          <span>小区名称：</span>
+          <Select placeholder="请选择小区名称" style={{ width: 180 }} allowClear />
           <span>验收状态：</span>
           <Select placeholder="请选择验收状态" style={{ width: 180 }} allowClear />
         </Space>

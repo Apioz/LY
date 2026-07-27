@@ -38,6 +38,7 @@ function FacilityFieldRows({ order }: { order: MiniWorkOrder }) {
   const extra = order.extra ?? {}
   const rows: { label: string; value: string }[] = [
     { label: '工单编号', value: extra['工单编号'] ?? order.id },
+    { label: '小区名称', value: extra['小区名称'] ?? order.community ?? '—' },
     { label: '告警设备', value: extra['告警设备'] ?? order.title },
     { label: '安装位置', value: extra['安装位置'] ?? '—' },
     { label: '告警等级', value: extra['告警等级'] ?? '—' },

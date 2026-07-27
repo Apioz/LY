@@ -16,7 +16,6 @@ import {
   FileProtectOutlined,
   ReadOutlined,
   ThunderboltOutlined,
-  FolderOpenOutlined,
   DatabaseOutlined,
   MobileOutlined,
   DesktopOutlined,
@@ -32,8 +31,6 @@ const groupIcons: Record<string, React.ReactNode> = {
   'safety-norm': <FileProtectOutlined />,
   'group-education': <ReadOutlined />,
   'group-drill': <ThunderboltOutlined />,
-  'group-archive': <FolderOpenOutlined />,
-  'group-project-archive': <FolderOpenOutlined />,
   'group-alarm': <AlertOutlined />,
   'facility-work-order': <ToolOutlined />,
   'group-device-mgmt': <AppstoreOutlined />,
@@ -110,11 +107,6 @@ export default function MainLayout({ activeKey, onNavigate, children, onSwitchMo
     }
     if (['training-materials', 'personnel-qualification'].includes(activeKey)) keys.push('group-education')
     if (['drill-plan', 'drill-implement'].includes(activeKey)) keys.push('group-drill')
-    if (
-      ['archive-all-projects', 'archive-maintenance', 'archive-renovation', 'archive-lease'].includes(activeKey)
-    ) {
-      keys.push('group-archive', 'group-project-archive')
-    }
     if (['alarm-stats', 'alarm-list', 'alarm-settings'].includes(activeKey))
       keys.push('group-alarm')
     if (['fire-device-mgmt', 'fire-event-alarm'].includes(activeKey)) {

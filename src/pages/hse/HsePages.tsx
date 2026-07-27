@@ -306,15 +306,22 @@ function ArchiveListPage({
   filters,
   columns,
   data,
+  searchClear,
 }: {
   filters: React.ReactNode
   columns: object[]
   data: object[]
+  searchClear?: boolean
 }) {
   const [selected, setSelected] = useState<React.Key[]>([])
   return (
     <>
-      <SearchBar onSearch={() => {}} onReset={() => {}} resetLabel="重置">
+      <SearchBar
+        onSearch={() => {}}
+        onReset={searchClear ? undefined : () => {}}
+        onClear={searchClear ? () => {} : undefined}
+        resetLabel="重置"
+      >
         {filters}
       </SearchBar>
       <TableToolbar selectedCount={selected.length} onAdd={() => {}} showExport onClearSelection={() => setSelected([])} />
@@ -337,20 +344,20 @@ export function ArchiveAllProjectsPage() {
     <ArchiveListPage
       filters={
         <>
-          <span>地块类别：</span>
-          <Select placeholder="请选择 地块类别" style={{ width: 180 }} allowClear />
+          <span>场所：</span>
+          <Select placeholder="请选择 场所" style={{ width: 180 }} allowClear />
         </>
       }
       data={archiveProjectRows}
       columns={[
         { title: '#', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
-        { title: '地块编号', dataIndex: 'plotNo', width: 120 },
-        { title: '地块名称', dataIndex: 'plotName', width: 100 },
-        { title: '地块简称', dataIndex: 'abbr', width: 80 },
-        { title: '地块地址', dataIndex: 'address', ellipsis: true },
+        { title: '小区编号', dataIndex: 'communityNo', width: 120 },
+        { title: '小区名称', dataIndex: 'communityName', width: 100 },
+        { title: '小区简称', dataIndex: 'abbr', width: 80 },
+        { title: '小区地址', dataIndex: 'address', ellipsis: true },
         { title: '管理中心', dataIndex: 'center', width: 140 },
-        { title: '地块类别', dataIndex: 'category', width: 160 },
-        { title: '地块负责人', dataIndex: 'charger', width: 100 },
+        { title: '场所', dataIndex: 'category', width: 160 },
+        { title: '小区负责人', dataIndex: 'charger', width: 100 },
         { title: '责任人', dataIndex: 'responsible', width: 90 },
         { title: '项目检修数量', dataIndex: 'maintain', width: 110 },
         { title: '二次装修数量', dataIndex: 'renovation', width: 110 },
@@ -380,8 +387,7 @@ export function ArchiveMaintenancePage() {
         { title: '#', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
         { title: '项目编号', dataIndex: 'projectNo', width: 130 },
         { title: '项目名称', dataIndex: 'name' },
-        { title: '地块', dataIndex: 'plot', width: 100 },
-        { title: '项目地块', dataIndex: 'plot', width: 100 },
+        { title: '小区', dataIndex: 'plot', width: 100 },
         { title: '项目位置', dataIndex: 'location', width: 140 },
         { title: '项目类型', dataIndex: 'type', width: 120 },
         { title: '项目负责人', dataIndex: 'manager', width: 100 },
@@ -410,7 +416,7 @@ export function ArchiveRenovationPage() {
         { title: '#', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
         { title: '项目编号', dataIndex: 'projectNo', width: 130 },
         { title: '项目名称', dataIndex: 'name' },
-        { title: '地块', dataIndex: 'plot', width: 100 },
+        { title: '小区', dataIndex: 'plot', width: 100 },
         { title: '项目类型', dataIndex: 'type', width: 100 },
         { title: '项目负责人', dataIndex: 'manager', width: 100 },
         { title: '更新人', width: 120, render: () => '管理员000000' },
@@ -429,8 +435,8 @@ export function ArchiveLeasePage() {
         <>
           <span>租赁单位：</span>
           <Input placeholder="请输入租赁单位" style={{ width: 180 }} />
-          <span>地块名称：</span>
-          <Input placeholder="请输入地块名称" style={{ width: 180 }} />
+          <span>小区名称：</span>
+          <Input placeholder="请输入小区名称" style={{ width: 180 }} />
         </>
       }
       data={[]}
@@ -438,11 +444,11 @@ export function ArchiveLeasePage() {
         { title: '#', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
         { title: '租赁编号', dataIndex: 'leaseNo' },
         { title: '租赁单位', dataIndex: 'tenant' },
-        { title: '地块名称', dataIndex: 'plotName' },
+        { title: '小区名称', dataIndex: 'communityName' },
         { title: '租赁位置', dataIndex: 'location' },
         { title: '租赁面积(平方米)', dataIndex: 'area' },
         { title: '租赁业态', dataIndex: 'format' },
-        { title: '地块类别', dataIndex: 'category' },
+        { title: '场所', dataIndex: 'category' },
         { title: '场所类型', dataIndex: 'venueType' },
         { title: '管理中心', dataIndex: 'center' },
         { title: '负责人', dataIndex: 'charger' },
@@ -496,12 +502,12 @@ export function PersonnelGridPage() {
   )
 }
 
-/** 图11 地块组织架构 */
+/** 图11 小区组织架构 */
 export function PlotOrgStructurePage() {
   return (
     <DocumentGridPage
       title="西区物业管理中心 HSE 管理网格图"
-      fileName="2026年房产经营平台地块组织架构.docx"
+      fileName="2026年房产经营平台小区组织架构.docx"
     />
   )
 }

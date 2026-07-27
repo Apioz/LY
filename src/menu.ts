@@ -14,10 +14,6 @@ export type MenuKey =
   | 'personnel-qualification'
   | 'drill-plan'
   | 'drill-implement'
-  | 'archive-all-projects'
-  | 'archive-maintenance'
-  | 'archive-renovation'
-  | 'archive-lease'
   | 'personnel-grid'
   | 'plot-org-structure'
   | 'special-equipment'
@@ -91,22 +87,6 @@ export const menuItems: MenuItem[] = [
       { key: 'drill-implement', label: '演练实施', route: 'drill-implement' },
     ],
   },
-  {
-    key: 'group-archive',
-    label: '档案管理',
-    children: [
-      {
-        key: 'group-project-archive',
-        label: '项目档案',
-        children: [
-          { key: 'archive-all-projects', label: '全部项目档案', route: 'archive-all-projects' },
-          { key: 'archive-maintenance', label: '项目检维修', route: 'archive-maintenance' },
-          { key: 'archive-renovation', label: '二次装修', route: 'archive-renovation' },
-          { key: 'archive-lease', label: '租赁档案', route: 'archive-lease' },
-        ],
-      },
-    ],
-  },
   { key: 'facility-work-order', label: '设施工单', route: 'facility-work-order' },
   {
     key: 'group-device-mgmt',
@@ -135,7 +115,7 @@ export const menuItems: MenuItem[] = [
     label: '基础管理',
     children: [
       { key: 'personnel-grid', label: '安全人员网格', route: 'personnel-grid' },
-      { key: 'plot-org-structure', label: '地块组织架构', route: 'plot-org-structure' },
+      { key: 'plot-org-structure', label: '小区组织架构', route: 'plot-org-structure' },
       {
         key: 'group-equip-archive',
         label: '设备档案',
@@ -174,12 +154,8 @@ export const pageTitles: Record<MenuKey, string> = {
   'personnel-qualification': '人员资质',
   'drill-plan': '演练计划',
   'drill-implement': '演练实施',
-  'archive-all-projects': '全部项目档案',
-  'archive-maintenance': '项目检维修',
-  'archive-renovation': '二次装修',
-  'archive-lease': '租赁档案',
   'personnel-grid': '安全人员网格',
-  'plot-org-structure': '地块组织架构',
+  'plot-org-structure': '小区组织架构',
   'special-equipment': '特种设备',
   'gas-equipment': '燃气设备',
   'charging-pile': '充电桩设备',

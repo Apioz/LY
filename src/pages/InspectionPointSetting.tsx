@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Table, Form, Input, Select, Space, Modal, Descriptions, Button, Upload, message } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { UploadOutlined, PrinterOutlined } from '@ant-design/icons'
+import { QRCodeSVG } from '@rc-component/qrcode'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
 import { pointRows as initialPointRows } from '../mock/data'
+import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
 
 export type PointRow = {
   id: string
@@ -22,6 +24,16 @@ const PLOT_LOCATIONS: Record<string, string[]> = {
   天山路473号: ['1号楼/1F/大堂', '1号楼/B1F/停车场'],
 }
 const TAG_OPTIONS = ['NFC', '二维码', '蓝牙']
+
+import { getInspectionPointQrValue } from '../constants/inspectionPointQr'
+
+function PointQrCode({ value, size = 48 }: { value: string; size?: number }) {
+  return (
+    <div style={{ display: 'inline-flex', padding: 4, background: '#fff', border: '1px solid #f0f0f0', borderRadius: 4 }}>
+      <QRCodeSVG value={value} size={size} />
+    </div>
+  )
+}
 
 function PointForm({
   form,
@@ -44,9 +56,9 @@ function PointForm({
       <Form.Item name="desc" label="点位描述">
         <Input placeholder="请输入点位描述" />
       </Form.Item>
-      <Form.Item name="plot" label="地块名称" rules={[{ required: true, message: '请选择地块名称' }]}>
+      <Form.Item name="plot" label="小区名称" rules={[{ required: true, message: '请选择小区名称' }]}>
         <Select
-          placeholder="请选择地块名称"
+          placeholder="请选择小区名称"
           options={PLOT_OPTIONS.map((v) => ({ value: v, label: v }))}
           onChange={(v) => {
             onPlotChange(v)
@@ -56,7 +68,7 @@ function PointForm({
       </Form.Item>
       <Form.Item name="location" label="空间位置" rules={[{ required: true, message: '请选择空间位置' }]}>
         <Select
-          placeholder={plot ? '请选择空间位置' : '请先选择地块'}
+          placeholder={plot ? '请选择空间位置' : '请先选择小区'}
           disabled={!plot || disabled}
           options={(plot ? PLOT_LOCATIONS[plot] : [])?.map((v) => ({ value: v, label: v }))}
         />
@@ -94,12 +106,28 @@ export default function InspectionPointSetting() {
   const [modal, setModal] = useState<'add' | 'view' | 'edit' | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedPlot, setSelectedPlot] = useState<string>()
+  const [communityFilter, setCommunityFilter] = useState<string>()
+  const [nameFilter, setNameFilter] = useState('')
+  const [printOpen, setPrintOpen] = useState(false)
+  const [printRows, setPrintRows] = useState<PointRow[]>([])
+  const printRef = useRef<HTMLDivElement>(null)
   const [form] = Form.useForm()
+
+  const filteredData = useMemo(
+    () =>
+      data.filter((row) => {
+        if (communityFilter && !matchesCommunityName(row.plot, communityFilter)) return false
+        if (nameFilter.trim() && !row.name.includes(nameFilter.trim())) return false
+        return true
+      }),
+    [data, communityFilter, nameFilter],
+  )
 
   const openModal = (type: 'add' | 'view' | 'edit', record?: PointRow) => {
     setModal(type)
     if (type === 'add') {
       form.resetFields()
+      form.setFieldsValue({ tag: '二维码' })
       setEditingId(null)
       setSelectedPlot(undefined)
     } else if (record) {
@@ -113,7 +141,7 @@ export default function InspectionPointSetting() {
     form.validateFields().then((values) => {
       if (modal === 'add') {
         const id = `PT${Date.now()}`
-        setData((prev) => [...prev, { ...values, id, tag: values.tag || 'NFC' }])
+        setData((prev) => [...prev, { ...values, id, tag: values.tag || '二维码' }])
         message.success('新增成功')
       } else if (modal === 'edit' && editingId) {
         setData((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...values } : r)))
@@ -135,14 +163,60 @@ export default function InspectionPointSetting() {
     })
   }
 
+  const handleBatchPrintQr = () => {
+    if (!selected.length) {
+      message.warning('请先勾选需要打印的点位')
+      return
+    }
+    const rows = data.filter((r) => selected.includes(r.id))
+    setPrintRows(rows)
+    setPrintOpen(true)
+  }
+
+  const handlePrint = () => {
+    if (!printRef.current) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      message.error('无法打开打印窗口，请检查浏览器弹窗设置')
+      return
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>批量打印二维码</title>
+          <style>
+            body { font-family: sans-serif; padding: 24px; }
+            .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+            .item { text-align: center; page-break-inside: avoid; border: 1px solid #eee; padding: 16px; border-radius: 8px; }
+            .name { font-size: 14px; font-weight: 600; margin-top: 12px; }
+            .meta { font-size: 12px; color: #666; margin-top: 4px; }
+            .id { font-size: 11px; color: #999; margin-top: 4px; }
+          </style>
+        </head>
+        <body>${printRef.current.innerHTML}</body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+    printWindow.close()
+  }
+
   const columns = [
     { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
     { title: '点位编号', dataIndex: 'id' },
     { title: '点位名称', dataIndex: 'name' },
     { title: '点位描述', dataIndex: 'desc' },
-    { title: '地块名称', dataIndex: 'plot' },
+    { title: '小区名称', dataIndex: 'plot' },
     { title: '空间位置', dataIndex: 'location' },
-    { title: '标签名称', dataIndex: 'tag' },
+    { title: '标签名称', dataIndex: 'tag', width: 90 },
+    {
+      title: '二维码',
+      width: 88,
+      align: 'center' as const,
+      render: (_: unknown, record: PointRow) => <PointQrCode value={getInspectionPointQrValue(record)} size={56} />,
+    },
     {
       title: '操作',
       width: 180,
@@ -160,13 +234,32 @@ export default function InspectionPointSetting() {
 
   return (
     <>
-      <SearchBar onSearch={() => {}} onClear={() => {}}>
+      <SearchBar
+        onSearch={() => {}}
+        onClear={() => {
+          setCommunityFilter(undefined)
+          setNameFilter('')
+        }}
+      >
         <Space wrap>
-          <Form.Item label="地块名称" style={{ marginBottom: 0 }}>
-            <Select placeholder="请选择地块名称" style={{ width: 200 }} allowClear options={PLOT_OPTIONS.map((v) => ({ value: v }))} />
+          <Form.Item label="小区名称" style={{ marginBottom: 0 }}>
+            <Select
+              placeholder="请选择小区名称"
+              style={{ width: 200 }}
+              allowClear
+              value={communityFilter}
+              onChange={setCommunityFilter}
+              options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+            />
           </Form.Item>
           <Form.Item label="点位名称" style={{ marginBottom: 0 }}>
-            <Input placeholder="请输入点位名称" style={{ width: 200 }} />
+            <Input
+              placeholder="请输入点位名称"
+              style={{ width: 200 }}
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              allowClear
+            />
           </Form.Item>
         </Space>
       </SearchBar>
@@ -186,11 +279,13 @@ export default function InspectionPointSetting() {
             },
           })
         }}
+        showBatchPrintQr
+        onBatchPrintQr={handleBatchPrintQr}
       />
       <Table
         rowKey="id"
         columns={columns}
-        dataSource={data}
+        dataSource={filteredData}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
         pagination={{ total: data.length, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
         style={{ padding: '0 16px 16px' }}
@@ -219,14 +314,72 @@ export default function InspectionPointSetting() {
             <Descriptions.Item label="点位编号">{form.getFieldValue('id')}</Descriptions.Item>
             <Descriptions.Item label="点位名称">{form.getFieldValue('name')}</Descriptions.Item>
             <Descriptions.Item label="点位描述">{form.getFieldValue('desc') || '-'}</Descriptions.Item>
-            <Descriptions.Item label="地块名称">{form.getFieldValue('plot')}</Descriptions.Item>
+            <Descriptions.Item label="小区名称">{form.getFieldValue('plot')}</Descriptions.Item>
             <Descriptions.Item label="空间位置">{form.getFieldValue('location')}</Descriptions.Item>
             <Descriptions.Item label="标签名称">{form.getFieldValue('tag') || '-'}</Descriptions.Item>
+            <Descriptions.Item label="二维码">
+              {form.getFieldValue('id') ? (
+                <PointQrCode
+                  value={getInspectionPointQrValue({
+                    id: form.getFieldValue('id'),
+                    name: form.getFieldValue('name'),
+                    plot: form.getFieldValue('plot'),
+                  })}
+                  size={72}
+                />
+              ) : (
+                '-'
+              )}
+            </Descriptions.Item>
             <Descriptions.Item label="点位标记">{form.getFieldValue('drawing') || '未选择任何图纸'}</Descriptions.Item>
           </Descriptions>
         ) : (
           <PointForm form={form} plot={selectedPlot} onPlotChange={setSelectedPlot} />
         )}
+      </Modal>
+      <Modal
+        title={`批量打印二维码（${printRows.length} 项）`}
+        open={printOpen}
+        onCancel={() => setPrintOpen(false)}
+        width={720}
+        footer={
+          <>
+            <Button onClick={() => setPrintOpen(false)}>关闭</Button>
+            <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
+              打印
+            </Button>
+          </>
+        }
+        destroyOnClose
+      >
+        <div
+          ref={printRef}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 16,
+            maxHeight: 480,
+            overflowY: 'auto',
+          }}
+        >
+          {printRows.map((row) => (
+            <div
+              key={row.id}
+              style={{
+                textAlign: 'center',
+                border: '1px solid #f0f0f0',
+                borderRadius: 8,
+                padding: 16,
+              }}
+            >
+              <PointQrCode value={getInspectionPointQrValue(row)} size={120} />
+              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 12 }}>{row.name}</div>
+              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{row.plot}</div>
+              <div style={{ fontSize: 12, color: '#666' }}>{row.location}</div>
+              <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{row.id}</div>
+            </div>
+          ))}
+        </div>
       </Modal>
     </>
   )

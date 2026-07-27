@@ -126,8 +126,8 @@ function PlanForm({ form, disabled }: { form: ReturnType<typeof Form.useForm>[0]
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item name="plot" label="地块名称" rules={[{ required: true, message: '请选择地块名称' }]}>
-            <Select placeholder="请选择地块名称" options={[{ value: '双翼大厦' }, { value: '中期大厦' }, { value: '天山路473' }]} />
+          <Form.Item name="plot" label="小区名称" rules={[{ required: true, message: '请选择小区名称' }]}>
+            <Select placeholder="请选择小区名称" options={[{ value: '双翼大厦' }, { value: '中期大厦' }, { value: '天山路473' }]} />
           </Form.Item>
         </Col>
         <Col span={24}>
@@ -244,7 +244,7 @@ export default function InspectionPlanSetting() {
     { title: '检查名称', dataIndex: 'name', ellipsis: true, width: 200 },
     { title: '管理类别', dataIndex: 'category', width: 80 },
     { title: '检查人', dataIndex: 'inspectors', width: 120 },
-    { title: '地块名称', dataIndex: 'plot', width: 100 },
+    { title: '小区名称', dataIndex: 'plot', width: 100 },
     { title: '任务发布人', dataIndex: 'publisher', width: 100 },
     { title: '开始时间', dataIndex: 'start', width: 110 },
     { title: '结束时间', dataIndex: 'end', width: 110 },
@@ -352,7 +352,7 @@ export default function InspectionPlanSetting() {
             <Descriptions.Item label="任务开始时间">
               {form.getFieldValue('taskStartTime')?.format?.('HH:mm:ss')}
             </Descriptions.Item>
-            <Descriptions.Item label="地块名称" span={2}>
+            <Descriptions.Item label="小区名称" span={2}>
               {form.getFieldValue('plot')}
             </Descriptions.Item>
             <Descriptions.Item label="计划描述" span={2}>

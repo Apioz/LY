@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Table, Select, Space, Tag } from 'antd'
 import SearchBar from '../components/SearchBar'
 import { workOrderRows } from '../mock/data'
+import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
 
 export const WORK_ORDER_STATUS = ['待处理', '处理中', '已完成', '已取消'] as const
 
@@ -14,14 +15,22 @@ const statusColor: Record<string, string> = {
 
 export default function InspectionWorkOrder() {
   const [statusFilter, setStatusFilter] = useState<string>()
-  const filtered = statusFilter ? workOrderRows.filter((r) => r.status === statusFilter) : workOrderRows
+  const [communityFilter, setCommunityFilter] = useState<string>()
+
+  const filtered = useMemo(() => {
+    return workOrderRows.filter((r) => {
+      if (statusFilter && r.status !== statusFilter) return false
+      if (communityFilter && !matchesCommunityName(r.community ?? r.plot, communityFilter)) return false
+      return true
+    })
+  }, [statusFilter, communityFilter])
 
   const columns = [
     { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
     { title: '工单编号', dataIndex: 'orderId', width: 260 },
     { title: '检查计划', dataIndex: 'plan', ellipsis: true },
     { title: '管理类别', dataIndex: 'category', width: 80 },
-    { title: '地块名称', dataIndex: 'plot', width: 100 },
+    { title: '小区名称', dataIndex: 'community', width: 100 },
     { title: '检查名称', dataIndex: 'name', ellipsis: true },
     { title: '点位数量', dataIndex: 'points', width: 80 },
     { title: '检查人', dataIndex: 'inspector', width: 120 },
@@ -37,8 +46,24 @@ export default function InspectionWorkOrder() {
 
   return (
     <>
-      <SearchBar onSearch={() => {}} onClear={() => {}} clearLabel="清空">
+      <SearchBar
+        onSearch={() => {}}
+        onClear={() => {
+          setCommunityFilter(undefined)
+          setStatusFilter(undefined)
+        }}
+        clearLabel="清空"
+      >
         <Space wrap>
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 180 }}
+            allowClear
+            value={communityFilter}
+            onChange={setCommunityFilter}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+          />
           <span>管理类别：</span>
           <Select placeholder="请选择管理类别" style={{ width: 180 }} allowClear options={[{ value: '巡查' }]} />
           <span>工单状态：</span>

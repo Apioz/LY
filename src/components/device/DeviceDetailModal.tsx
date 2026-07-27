@@ -8,6 +8,7 @@ import {
   type FireDeviceRow,
   type MonitorDeviceRow,
 } from '../../mock/deviceData'
+import { COMMUNITIES, normalizeCommunity } from '../../constants/communities'
 import './deviceDetailModal.css'
 
 export type DeviceDetailKind = 'fire' | 'monitor'
@@ -71,6 +72,7 @@ export default function DeviceDetailModal({
   useEffect(() => {
     if (!open || !record) return
     form.setFieldsValue({
+      community: record.community,
       locationPath: locationToPath(record.location),
       locationText: record.location,
       ID_设备类型: record.ID_设备类型 ?? '',
@@ -102,6 +104,7 @@ export default function DeviceDetailModal({
 
     const next: DeviceRecord = {
       ...record,
+      community: normalizeCommunity(values.community, location),
       location,
       ID_设备类型: values.ID_设备类型?.trim() || undefined,
       dockAddress: values.dockAddress?.trim() || undefined,
@@ -154,6 +157,19 @@ export default function DeviceDetailModal({
         <SectionCard title="台账基础信息">
           <Row gutter={20}>
             <Col span={8}>
+              <Form.Item
+                label="小区名称"
+                name="community"
+                rules={[{ required: !readonly, message: '请选择小区名称' }]}
+              >
+                <Select
+                  placeholder="请选择小区名称"
+                  options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+                  disabled={readonly}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
               {isFire || readonly ? (
                 <Form.Item label="安装位置" name="locationText">
                   <Input placeholder="自动读取" {...inputProps(true)} />
@@ -177,13 +193,13 @@ export default function DeviceDetailModal({
                 <Input placeholder={readonly ? '自动读取' : '自动读取，可编辑'} {...inputProps(readonly)} />
               </Form.Item>
             </Col>
+          </Row>
+          <Row gutter={20}>
             <Col span={8}>
               <Form.Item label="对接地址" name="dockAddress">
                 <Input placeholder={readonly ? '自动读取' : '自动读取，可编辑'} {...inputProps(readonly)} />
               </Form.Item>
             </Col>
-          </Row>
-          <Row gutter={20}>
             <Col span={8}>
               <Form.Item label="设备名称" name="deviceName">
                 <Input placeholder="请输入" {...inputProps(readonly)} />

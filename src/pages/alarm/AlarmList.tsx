@@ -14,6 +14,7 @@ import {
 } from '../../store/alarmSync'
 import { getAlarmList, subscribeAlarmList } from '../../store/alarmListStore'
 import { subscribeAlarmDeviceRules } from '../../store/alarmSettingsStore'
+import { COMMUNITIES, matchesCommunityName } from '../../constants/communities'
 
 /** 告警列表筛选用状态（含列表专属「告警」「自动解除告警」） */
 const ALARM_LIST_STATUS = [...ALARM_STATUS, '告警', '自动解除告警'] as const
@@ -72,6 +73,7 @@ function facilityOrderLabel(alarm: AlarmListItem) {
 export default function AlarmList() {
   const [data, setData] = useState<AlarmListItem[]>(() => getAlarmList())
   const [levelFilter, setLevelFilter] = useState<string>()
+  const [communityFilter, setCommunityFilter] = useState<string>()
   const [statusFilter, setStatusFilter] = useState<string>()
   const [descFilter, setDescFilter] = useState<string>()
   const [detail, setDetail] = useState<AlarmListItem | null>(null)
@@ -100,6 +102,7 @@ export default function AlarmList() {
 
   const filtered = data.filter((r) => {
     if (levelFilter && r.level !== levelFilter) return false
+    if (communityFilter && !matchesCommunityName(r.community, communityFilter)) return false
     if (statusFilter && r.status !== statusFilter) return false
     if (descFilter && r.desc !== descFilter) return false
     return true
@@ -121,6 +124,13 @@ export default function AlarmList() {
       width: 160,
       ellipsis: true,
       render: (v: string) => v || '-',
+    },
+    {
+      title: '小区名称',
+      dataIndex: 'community',
+      width: 120,
+      ellipsis: true,
+      render: (v: string) => v || '—',
     },
     {
       title: '安装位置',
@@ -152,6 +162,7 @@ export default function AlarmList() {
         onSearch={() => message.success('搜索完成')}
         onReset={() => {
           setLevelFilter(undefined)
+          setCommunityFilter(undefined)
           setStatusFilter(undefined)
           setDescFilter(undefined)
         }}
@@ -165,6 +176,15 @@ export default function AlarmList() {
             value={levelFilter}
             onChange={setLevelFilter}
             options={ALARM_LEVELS.map((v) => ({ value: v, label: v }))}
+          />
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 160 }}
+            allowClear
+            value={communityFilter}
+            onChange={setCommunityFilter}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
           />
           <span>告警状态：</span>
           <Select
@@ -192,7 +212,7 @@ export default function AlarmList() {
         rowKey="id"
         columns={columns}
         dataSource={filtered}
-        scroll={{ x: 1480 }}
+        scroll={{ x: 1600 }}
         pagination={{ showTotal: (t) => `共 ${t} 条`, pageSize: 10, showSizeChanger: true }}
         style={{ padding: 16 }}
       />
@@ -209,6 +229,7 @@ export default function AlarmList() {
             <Descriptions.Item label="告警名称">{detail.name}</Descriptions.Item>
             <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>
             <Descriptions.Item label="告警设备">{detail.alarmDevice || '—'}</Descriptions.Item>
+            <Descriptions.Item label="小区名称">{detail.community || '—'}</Descriptions.Item>
             <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
             <Descriptions.Item label="告警描述">{detail.desc}</Descriptions.Item>
             <Descriptions.Item label="告警状态">{alarmStatusDetailText(detail)}</Descriptions.Item>

@@ -1,14 +1,16 @@
+import { COMMUNITIES } from '../constants/communities'
+
 export const pointRows = [
-  { id: 'PT202605140002', name: '室外2F配电间', desc: '', plot: '双翼大厦', location: '1号楼/2F/配电间', tag: 'NFC' },
-  { id: 'PT202605140001', name: '1F生活水泵房', desc: '', plot: '双翼大厦', location: '1号楼/1F/生活水泵房', tag: 'NFC' },
-  { id: 'PT202605130003', name: 'B2F消防泵房', desc: '', plot: '双翼大厦', location: '1号楼/B2F/消防泵房', tag: 'NFC' },
-  { id: 'PT202604280002', name: 'B1F高配间', desc: '', plot: '中期大厦', location: '1号楼/B1F/高压配电间', tag: 'NFC' },
-  { id: 'PT202604280001', name: '29F电梯机房', desc: '', plot: '中期大厦', location: '1号楼/29F/电梯机房', tag: 'NFC' },
-  { id: 'PT202604270080', name: '1F大堂', desc: '', plot: '天山路473号', location: '1号楼/1F/大堂', tag: 'NFC' },
-  { id: 'PT202604270079', name: 'B1F停车场', desc: '', plot: '天山路473号', location: '1号楼/B1F/停车场', tag: 'NFC' },
-  { id: 'PT202604270078', name: '1F厨房（麦当劳）', desc: '', plot: '双翼大厦', location: '1号楼/1F/厨房（麦当劳）', tag: 'NFC' },
-  { id: 'PT202604270077', name: '2F办公区', desc: '', plot: '双翼大厦', location: '1号楼/2F/办公区', tag: 'NFC' },
-  { id: 'PT202604270076', name: '屋顶设备层', desc: '', plot: '中期大厦', location: '1号楼/屋顶/设备层', tag: 'NFC' },
+  { id: 'PT202605140002', name: '室外2F配电间', desc: '', plot: '双翼大厦', location: '1号楼/2F/配电间', tag: '二维码' },
+  { id: 'PT202605140001', name: '1F生活水泵房', desc: '', plot: '双翼大厦', location: '1号楼/1F/生活水泵房', tag: '二维码' },
+  { id: 'PT202605130003', name: 'B2F消防泵房', desc: '', plot: '双翼大厦', location: '1号楼/B2F/消防泵房', tag: '二维码' },
+  { id: 'PT202604280002', name: 'B1F高配间', desc: '', plot: '中期大厦', location: '1号楼/B1F/高压配电间', tag: '二维码' },
+  { id: 'PT202604280001', name: '29F电梯机房', desc: '', plot: '中期大厦', location: '1号楼/29F/电梯机房', tag: '二维码' },
+  { id: 'PT202604270080', name: '1F大堂', desc: '', plot: '天山路473号', location: '1号楼/1F/大堂', tag: '二维码' },
+  { id: 'PT202604270079', name: 'B1F停车场', desc: '', plot: '天山路473号', location: '1号楼/B1F/停车场', tag: '二维码' },
+  { id: 'PT202604270078', name: '1F厨房（麦当劳）', desc: '', plot: '双翼大厦', location: '1号楼/1F/厨房（麦当劳）', tag: '二维码' },
+  { id: 'PT202604270077', name: '2F办公区', desc: '', plot: '双翼大厦', location: '1号楼/2F/办公区', tag: '二维码' },
+  { id: 'PT202604270076', name: '屋顶设备层', desc: '', plot: '中期大厦', location: '1号楼/屋顶/设备层', tag: '二维码' },
 ]
 
 export const programRows = [
@@ -57,10 +59,10 @@ export const planRows = [
 ]
 
 export const workOrderRows = [
-  { orderId: 'WO202606010001', plan: '双翼大厦1F机电房安全检查', category: '巡查', plot: '双翼大厦', name: '双翼大厦1F机电房安全检查', points: 3, inspector: '郭仲伟, 徐兴庆', startTime: '2026-06-01 09:00:00', status: '待处理' },
-  { orderId: 'WO202606010002', plan: '中期大厦29F电梯机房检查', category: '巡查', plot: '中期大厦', name: '中期大厦29F电梯机房检查', points: 1, inspector: '冯晓, 郑晋军', startTime: '2026-06-01 10:30:00', status: '处理中' },
-  { orderId: 'WO202605310003', plan: '天山路473号消防检查', category: '巡查', plot: '天山路473', name: '天山路473号消防检查', points: 2, inspector: '武言民', startTime: '2026-05-31 14:20:00', status: '已完成' },
-  { orderId: 'WO202605300004', plan: '北京华路配电检查', category: '巡查', plot: '北京华路', name: '配电间月度检查', points: 1, inspector: '李明', startTime: '2026-05-30 11:00:00', status: '已取消' },
+  { orderId: 'WO202606010001', plan: '双翼大厦1F机电房安全检查', category: '巡查', plot: '双翼大厦', community: '双翼大厦', name: '双翼大厦1F机电房安全检查', points: 3, inspector: '郭仲伟, 徐兴庆', startTime: '2026-06-01 09:00:00', status: '待处理' },
+  { orderId: 'WO202606010002', plan: '中期大厦29F电梯机房检查', category: '巡查', plot: '中期大厦', community: '中期大厦', name: '中期大厦29F电梯机房检查', points: 1, inspector: '冯晓, 郑晋军', startTime: '2026-06-01 10:30:00', status: '处理中' },
+  { orderId: 'WO202605310003', plan: '天山路473号消防检查', category: '巡查', plot: '天山路473', community: '天山路473', name: '天山路473号消防检查', points: 2, inspector: '武言民', startTime: '2026-05-31 14:20:00', status: '已完成' },
+  { orderId: 'WO202605300004', plan: '北京华路配电检查', category: '巡查', plot: '北京华路', community: '北京华路', name: '配电间月度检查', points: 1, inspector: '李明', startTime: '2026-05-30 11:00:00', status: '已取消' },
 ]
 
 export const allInspectionRows = [
@@ -171,6 +173,8 @@ export interface SafetyStatsTimeFilter {
   month: number
   /** 1-4，period 为 quarter 时使用 */
   quarter: number
+  /** 小区名称筛选，空表示全部 */
+  communities?: string[]
 }
 
 const CATEGORY_NAMES = [
@@ -201,10 +205,24 @@ const HAZARD_NAMES = [
 ]
 
 function statsSeed(filter: SafetyStatsTimeFilter): number {
-  const { period, year, month, quarter } = filter
-  if (period === 'month') return year * 10000 + month * 100
-  if (period === 'quarter') return year * 10000 + quarter * 1000
-  return year * 10000
+  const { period, year, month, quarter, communities } = filter
+  let base: number
+  if (period === 'month') base = year * 10000 + month * 100
+  else if (period === 'quarter') base = year * 10000 + quarter * 1000
+  else base = year * 10000
+  if (!communities?.length) return base
+  const bonus = communities.reduce((s, c, i) => s + c.charCodeAt(0) * (i + 3), 0)
+  return base + bonus % 10000
+}
+
+/** 选中小区数量占全部小区的比例，用于聚合统计缩放 */
+function safetyCommunityScale(communities?: string[]) {
+  if (!communities?.length) return 1
+  return communities.length / COMMUNITIES.length
+}
+
+function scaleStatValue(value: number, communities?: string[]) {
+  return Math.max(0, Math.round(value * safetyCommunityScale(communities)))
 }
 
 function seededInt(seed: number, index: number, min: number, max: number): number {
@@ -215,20 +233,21 @@ function seededInt(seed: number, index: number, min: number, max: number): numbe
 /** 按时间维度折线图：横轴与数据随 period 变化 */
 export function getSafetyLineChart(filter: SafetyStatsTimeFilter) {
   const seed = statsSeed(filter)
+  const scale = (v: number) => scaleStatValue(v, filter.communities)
   if (filter.period === 'month') {
     const days = new Date(filter.year, filter.month, 0).getDate()
     const xLabels = Array.from({ length: days }, (_, i) => `${i + 1}日`)
-    const data = Array.from({ length: days }, (_, i) => seededInt(seed, i + 1, 0, 18))
+    const data = Array.from({ length: days }, (_, i) => scale(seededInt(seed, i + 1, 0, 18)))
     return { xLabels, data, xAxisName: '日期' as const }
   }
   if (filter.period === 'quarter') {
     const startMonth = (filter.quarter - 1) * 3 + 1
     const xLabels = [0, 1, 2].map((i) => `${startMonth + i}月`)
-    const data = [0, 1, 2].map((i) => seededInt(seed, i + 10, 5, 120))
+    const data = [0, 1, 2].map((i) => scale(seededInt(seed, i + 10, 5, 120)))
     return { xLabels, data, xAxisName: '月份' as const }
   }
   const xLabels = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
-  const data = Array.from({ length: 12 }, (_, i) => seededInt(seed, i + 20, 3, 95))
+  const data = Array.from({ length: 12 }, (_, i) => scale(seededInt(seed, i + 20, 3, 95)))
   return { xLabels, data, xAxisName: '月份' as const }
 }
 
@@ -236,16 +255,16 @@ export function getCategoryPieByTime(filter: SafetyStatsTimeFilter) {
   const seed = statsSeed(filter)
   return CATEGORY_NAMES.map((name, i) => ({
     name,
-    value: seededInt(seed, i + 30, 1, 12),
+    value: scaleStatValue(seededInt(seed, i + 30, 1, 12), filter.communities),
   }))
 }
 
 export function getRectificationPieByTime(filter: SafetyStatsTimeFilter) {
   const seed = statsSeed(filter)
   return [
-    { name: '未处理', value: seededInt(seed, 50, 5, 25) },
-    { name: '处理中', value: seededInt(seed, 51, 3, 18) },
-    { name: '处理完成', value: seededInt(seed, 52, 10, 40) },
+    { name: '未处理', value: scaleStatValue(seededInt(seed, 50, 5, 25), filter.communities) },
+    { name: '处理中', value: scaleStatValue(seededInt(seed, 51, 3, 18), filter.communities) },
+    { name: '处理完成', value: scaleStatValue(seededInt(seed, 52, 10, 40), filter.communities) },
   ]
 }
 
@@ -253,7 +272,7 @@ export function getSafetyLevelPieByTime(filter: SafetyStatsTimeFilter) {
   const seed = statsSeed(filter)
   return safetyLevelOptions.map((name, i) => ({
     name,
-    value: seededInt(seed, i + 60, 8, 55),
+    value: scaleStatValue(seededInt(seed, i + 60, 8, 55), filter.communities),
   }))
 }
 
@@ -262,10 +281,23 @@ export function getHazardTop5ByTime(filter: SafetyStatsTimeFilter) {
   return HAZARD_NAMES.map((name, i) => ({
     key: String(i),
     name,
-    count: seededInt(seed, i + 70, 1, 28),
+    count: scaleStatValue(seededInt(seed, i + 70, 1, 28), filter.communities),
   }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
+}
+
+/** 各小区安全检查工单统计 */
+export function getSafetyCommunityStats(filter: SafetyStatsTimeFilter) {
+  const list = filter.communities?.length ? filter.communities : [...COMMUNITIES]
+  const baseSeed = statsSeed({ ...filter, communities: undefined })
+  return list
+    .map((name, i) => {
+      const idx = COMMUNITIES.indexOf(name as (typeof COMMUNITIES)[number])
+      const cSeed = baseSeed + (idx >= 0 ? idx + 1 : i + 1) * 9973
+      return { name, value: seededInt(cSeed, 88, 8, 120) }
+    })
+    .filter((d) => d.value > 0)
 }
 
 /** @deprecated 使用 getSafetyLineChart */
@@ -288,4 +320,91 @@ export const alarmListRows = [
 export const facilityOrderRows = [
   { id: 'SG20260601001', title: '空调维修', plot: '双翼大厦', applicant: '张三', time: '2026-06-01 10:00:00', status: '待派工' },
   { id: 'SG20260601002', title: '照明更换', plot: '中期大厦', applicant: '李四', time: '2026-06-01 14:30:00', status: '进行中' },
+]
+
+export const inspectionReportRows = [
+  {
+    id: 'RP20260601001',
+    date: '2026-06-01',
+    community: '双翼大厦',
+    plot: '双翼大厦',
+    center: '双翼管理中心',
+    safetyCategory: '消防设施',
+    category: '巡查',
+    safetyLevel: '二级',
+    desc: '消防通道堆放杂物',
+    deadline: '2026-06-08',
+    measure: '限期整改',
+    rectDesc: '已清理并张贴警示',
+    owner: '郭仲伟',
+    responsible: '徐兴庆',
+    confirmer: '管理员1',
+    requiredDate: '2026-06-08',
+    actualDate: '2026-06-05',
+    reportType: '工单报表',
+    remark: '',
+  },
+  {
+    id: 'RP20260601002',
+    date: '2026-06-01',
+    community: '中期大厦',
+    plot: '中期大厦',
+    center: '中期管理中心',
+    safetyCategory: '电气安全',
+    category: '巡查',
+    safetyLevel: '三级',
+    desc: '配电间警示标识缺失',
+    deadline: '2026-06-10',
+    measure: '现场整改',
+    rectDesc: '补装标识牌',
+    owner: '冯晓',
+    responsible: '郑晋军',
+    confirmer: '管理员1',
+    requiredDate: '2026-06-10',
+    actualDate: '2026-06-03',
+    reportType: '工单报表',
+    remark: '',
+  },
+  {
+    id: 'RP20260531003',
+    date: '2026-05-31',
+    community: '天山路473',
+    plot: '天山路473',
+    center: '天山路管理中心',
+    safetyCategory: '消防设施',
+    category: '巡查',
+    safetyLevel: '一级',
+    desc: '消火栓压力不足',
+    deadline: '2026-06-05',
+    measure: '维修更换',
+    rectDesc: '更换阀门后复测正常',
+    owner: '武言民',
+    responsible: '武言民',
+    confirmer: '管理员2',
+    requiredDate: '2026-06-05',
+    actualDate: '2026-06-02',
+    reportType: '导入报表',
+    remark: '第三方检测导入',
+  },
+  {
+    id: 'RP20260530004',
+    date: '2026-05-30',
+    community: '森林湾大厦',
+    plot: '森林湾大厦',
+    center: '森林湾管理中心',
+    safetyCategory: '通道安全',
+    category: '租赁',
+    safetyLevel: '四级',
+    desc: '应急指示灯故障',
+    deadline: '2026-06-06',
+    measure: '更换灯具',
+    rectDesc: '待更换配件到货',
+    owner: '李明',
+    responsible: '李明',
+    confirmer: '—',
+    requiredDate: '2026-06-06',
+    actualDate: '—',
+    reportType: '工单报表',
+    remark: '跟进中',
+  },
 ]

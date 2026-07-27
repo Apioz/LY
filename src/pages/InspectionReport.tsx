@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Table, Select, DatePicker, Tabs, Space, Button } from 'antd'
 import { ExportOutlined, ReloadOutlined, ColumnHeightOutlined, FullscreenOutlined } from '@ant-design/icons'
 import SearchBar from '../components/SearchBar'
+import { inspectionReportRows } from '../mock/data'
+import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
 
 const reportColumns = [
   { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
   { title: '检查日期', dataIndex: 'date', width: 110 },
-  { title: '地块名称', dataIndex: 'plot', width: 100 },
+  { title: '小区名称', dataIndex: 'community', width: 110, ellipsis: true },
   { title: '管理中心', dataIndex: 'center', width: 100 },
   { title: '安全类别', dataIndex: 'safetyCategory', width: 100 },
   { title: '管理类别', dataIndex: 'category', width: 90 },
@@ -26,15 +28,39 @@ const reportColumns = [
 
 export default function InspectionReport() {
   const [subTab, setSubTab] = useState('all')
+  const [communityFilter, setCommunityFilter] = useState<string>()
+
+  const filtered = useMemo(() => {
+    return inspectionReportRows.filter((row) => {
+      if (communityFilter && !matchesCommunityName(row.community ?? row.plot, communityFilter)) return false
+      if (subTab === 'workorder' && row.reportType !== '工单报表') return false
+      if (subTab === 'import' && row.reportType !== '导入报表') return false
+      return true
+    })
+  }, [subTab, communityFilter])
 
   return (
     <>
-      <SearchBar onSearch={() => {}} onClear={() => {}}>
+      <SearchBar onSearch={() => {}} onClear={() => setCommunityFilter(undefined)} clearLabel="清空">
         <Space wrap>
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 180 }}
+            allowClear
+            value={communityFilter}
+            onChange={setCommunityFilter}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+          />
           <span>管理中心：</span>
           <Select placeholder="请选择 管理中心" style={{ width: 180 }} allowClear />
           <span>安全等级：</span>
-          <Select placeholder="请选择 安全等级" style={{ width: 180 }} allowClear options={[{ value: '一级' }, { value: '二级' }, { value: '三级' }, { value: '四级' }]} />
+          <Select
+            placeholder="请选择 安全等级"
+            style={{ width: 180 }}
+            allowClear
+            options={[{ value: '一级' }, { value: '二级' }, { value: '三级' }, { value: '四级' }]}
+          />
           <span>整改实际完成日期：</span>
           <DatePicker.RangePicker placeholder={['开始', '结束']} />
         </Space>
@@ -60,7 +86,14 @@ export default function InspectionReport() {
           }
         />
       </div>
-      <Table columns={reportColumns} dataSource={[]} scroll={{ x: 2400 }} locale={{ emptyText: '暂无' }} style={{ padding: '0 16px 16px' }} />
+      <Table
+        rowKey="id"
+        columns={reportColumns}
+        dataSource={filtered}
+        scroll={{ x: 2520 }}
+        pagination={{ showTotal: (t) => `共 ${t} 条`, pageSize: 10 }}
+        style={{ padding: '0 16px 16px' }}
+      />
     </>
   )
 }

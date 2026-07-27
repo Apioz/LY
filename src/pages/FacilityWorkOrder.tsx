@@ -7,7 +7,6 @@ import {
   Tag,
   Modal,
   Descriptions,
-  Tabs,
   Alert,
   Button,
   Divider,
@@ -21,8 +20,6 @@ import FacilityWorkOrderSettingsModal from '../components/FacilityWorkOrderSetti
 import FacilityFlowTimeline from '../components/FacilityFlowTimeline'
 import {
   FACILITY_PROCESS_STATUS,
-  FACILITY_WORK_ORDER_STATUS,
-  facilityOrderMatchesTab,
   facilityProcessStatusMatchesFilter,
   facilitySlaColorHex,
   getFacilityOrders,
@@ -36,16 +33,7 @@ import {
 } from '../store/alarmSync'
 import { canEditFacilityWorkOrderSettings } from '../store/platformUser'
 import { ALARM_LEVELS, ALARM_DEVICES, LEVEL_COLORS } from './alarm/constants'
-
-type StatusTabKey = 'all' | 'processing' | 'unprocessed' | 'processed' | 'damaged'
-
-const STATUS_TABS: { key: StatusTabKey; label: string }[] = [
-  { key: 'all', label: '全部' },
-  { key: 'processing', label: '处理中' },
-  { key: 'unprocessed', label: '未处理' },
-  { key: 'processed', label: '已处理' },
-  { key: 'damaged', label: '损坏' },
-]
+import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
 
 const workOrderStatusColor: Record<string, string> = {
   待处理: 'warning',
@@ -65,26 +53,17 @@ const processStatusColor: Record<string, string> = {
 
 const COL_WIDTH = 120
 
-interface ListFilters {
-  workOrderStatus?: string
-  processStatus?: FacilityProcessStatus
-  level?: string
-  device?: string
-  month?: Dayjs | null
-}
-
 function matchMonth(alarmTime: string, month: Dayjs) {
   return alarmTime.startsWith(month.format('YYYY-MM'))
 }
 
 export default function FacilityWorkOrder() {
   const [data, setData] = useState<FacilityOrderItem[]>(getFacilityOrders())
-  const [statusTab, setStatusTab] = useState<StatusTabKey>('all')
-  const [draftProcessStatus, setDraftProcessStatus] = useState<FacilityProcessStatus>()
-  const [draftLevel, setDraftLevel] = useState<string>()
-  const [draftDevice, setDraftDevice] = useState<string>()
-  const [draftMonth, setDraftMonth] = useState<Dayjs | null>(null)
-  const [applied, setApplied] = useState<ListFilters>({})
+  const [processStatus, setProcessStatus] = useState<FacilityProcessStatus>()
+  const [community, setCommunity] = useState<string>()
+  const [level, setLevel] = useState<string>()
+  const [device, setDevice] = useState<string>()
+  const [month, setMonth] = useState<Dayjs | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [slaTick, setSlaTick] = useState(0)
@@ -110,27 +89,35 @@ export default function FacilityWorkOrder() {
 
   const filtered = useMemo(() => {
     let rows = data
-    if (statusTab !== 'all') {
-      rows = rows.filter((r) => facilityOrderMatchesTab(r, statusTab, now))
+    if (processStatus) {
+      rows = rows.filter((r) => facilityProcessStatusMatchesFilter(r, processStatus, now))
     }
-    if (applied.workOrderStatus) {
-      rows = rows.filter(
-        (r) => resolveFacilityStatusView(r, undefined, now).workOrderStatus === applied.workOrderStatus,
-      )
-    }
-    if (applied.processStatus) {
-      rows = rows.filter((r) => facilityProcessStatusMatchesFilter(r, applied.processStatus!, now))
-    }
-    if (applied.level) rows = rows.filter((r) => r.level === applied.level)
-    if (applied.device) rows = rows.filter((r) => r.alarmDevice === applied.device)
-    if (applied.month) rows = rows.filter((r) => matchMonth(r.alarmTime, applied.month!))
+    if (community) rows = rows.filter((r) => matchesCommunityName(r.community, community))
+    if (level) rows = rows.filter((r) => r.level === level)
+    if (device) rows = rows.filter((r) => r.alarmDevice === device)
+    if (month) rows = rows.filter((r) => matchMonth(r.alarmTime, month))
     return rows
-  }, [data, statusTab, applied, now])
+  }, [data, processStatus, community, level, device, month, now])
+
+  const handleReset = () => {
+    setProcessStatus(undefined)
+    setCommunity(undefined)
+    setLevel(undefined)
+    setDevice(undefined)
+    setMonth(null)
+  }
 
   const columns: ColumnsType<FacilityOrderItem> = useMemo(
     () => [
       { title: '序号', width: 64, align: 'center', render: (_v, _r, i) => i + 1 },
       { title: '工单编号', dataIndex: 'id', width: COL_WIDTH, ellipsis: true },
+      {
+        title: '小区名称',
+        dataIndex: 'community',
+        width: COL_WIDTH,
+        ellipsis: true,
+        render: (v: string) => v || '—',
+      },
       {
         title: '告警设备',
         dataIndex: 'alarmDevice',
@@ -198,46 +185,38 @@ export default function FacilityWorkOrder() {
     [now],
   )
 
-  const handleSearch = () => {
-    setApplied({
-      processStatus: draftProcessStatus,
-      level: draftLevel,
-      device: draftDevice,
-      month: draftMonth,
-    })
-  }
 
-  const handleReset = () => {
-    setDraftProcessStatus(undefined)
-    setDraftLevel(undefined)
-    setDraftDevice(undefined)
-    setDraftMonth(null)
-    setApplied({})
-    setStatusTab('all')
-  }
-
-  const scrollX = COL_WIDTH * 9 + 64 + 80 + 20
+  const scrollX = COL_WIDTH * 10 + 64 + 80 + 20
 
   return (
     <>
-      <SearchBar onSearch={handleSearch} onReset={handleReset} resetLabel="重置">
+      <SearchBar onSearch={() => {}} onReset={handleReset} resetLabel="重置">
         <Space wrap size="middle">
           <span>处理状态：</span>
           <Select
             placeholder="请选择处理状态"
             style={{ width: 150 }}
             allowClear
-            value={draftProcessStatus}
-            onChange={setDraftProcessStatus}
+            value={processStatus}
+            onChange={setProcessStatus}
             options={FACILITY_PROCESS_STATUS.map((v) => ({ value: v, label: v }))}
+          />
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 150 }}
+            allowClear
+            value={community}
+            onChange={setCommunity}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
           />
           <span>告警等级：</span>
           <Select
             placeholder="请选择告警等级"
             style={{ width: 140 }}
             allowClear
-            value={draftLevel}
-            onChange={setDraftLevel}
+            value={level}
+            onChange={setLevel}
             options={ALARM_LEVELS.map((v) => ({ value: v, label: v }))}
           />
           <span>告警设备：</span>
@@ -245,8 +224,8 @@ export default function FacilityWorkOrder() {
             placeholder="请选择告警设备"
             style={{ width: 140 }}
             allowClear
-            value={draftDevice}
-            onChange={setDraftDevice}
+            value={device}
+            onChange={setDevice}
             options={ALARM_DEVICES.map((v) => ({ value: v, label: v }))}
           />
           <span>告警月份：</span>
@@ -254,8 +233,8 @@ export default function FacilityWorkOrder() {
             picker="month"
             placeholder="请选择月份"
             style={{ width: 140 }}
-            value={draftMonth}
-            onChange={setDraftMonth}
+            value={month}
+            onChange={setMonth}
             allowClear
           />
         </Space>
@@ -265,12 +244,6 @@ export default function FacilityWorkOrder() {
           {canEditSettings ? '工单设置' : '查看工单设置'}
         </Button>
       </div>
-      <Tabs
-        style={{ padding: '0 16px', marginBottom: 0 }}
-        activeKey={statusTab}
-        onChange={(k) => setStatusTab(k as StatusTabKey)}
-        items={STATUS_TABS.map((t) => ({ key: t.key, label: t.label }))}
-      />
       <Alert
         type="info"
         showIcon
@@ -307,6 +280,7 @@ export default function FacilityWorkOrder() {
               <>
                 <Descriptions bordered column={1} size="small">
                   <Descriptions.Item label="工单编号">{detail.id}</Descriptions.Item>
+                  <Descriptions.Item label="小区名称">{detail.community || '—'}</Descriptions.Item>
                   <Descriptions.Item label="告警设备">{detail.alarmDevice || '—'}</Descriptions.Item>
                   <Descriptions.Item label="安装位置">{detail.installLocation || '—'}</Descriptions.Item>
                   <Descriptions.Item label="告警等级">{detail.level}</Descriptions.Item>

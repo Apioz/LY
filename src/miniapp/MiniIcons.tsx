@@ -103,11 +103,62 @@ export function EmptyDocIcon({ size = 40, className }: IconProps) {
 }
 
 const WO_ICON_COLORS: Record<MiniWorkOrderType | 'my', string> = {
+  safety: '#52C41A',
+  construction: '#9254DE',
+  rectification: '#1890FF',
+  newInspection: '#1890FF',
   repair: '#3B8CFF',
   facility: '#13C2C2',
   maintenance: '#52C41A',
   inspection: '#FAAD14',
   my: '#9254DE',
+}
+
+function WoSafetyGlyph() {
+  return (
+    <>
+      <circle cx="16" cy="16" r="9" fill="currentColor" opacity="0.95" />
+      <path
+        fill="#fff"
+        d="M16 10.5a1.2 1.2 0 0 1 1.2 1.2v2.8h2.8a1.2 1.2 0 1 1 0 2.4h-2.8v2.8a1.2 1.2 0 1 1-2.4 0v-2.8h-2.8a1.2 1.2 0 0 1 0-2.4h2.8v-2.8A1.2 1.2 0 0 1 16 10.5z"
+      />
+      <path
+        fill="currentColor"
+        opacity="0.95"
+        d="M22.5 22.5 27 18l1.4 1.4-4.5 4.5-2.1-2.1 1.4-1.3 1.8 1.8z"
+      />
+    </>
+  )
+}
+
+function WoConstructionGlyph() {
+  return (
+    <>
+      <rect x="7" y="8" width="16" height="16" rx="2" fill="currentColor" opacity="0.95" />
+      <path fill="#fff" d="M10 11h10v2H10v-2zm0 4h10v1.5H10V15zm0 3.5h7V18h-7v-1.5z" />
+      <circle cx="24" cy="24" r="6" fill="currentColor" />
+      <path fill="#fff" d="M22.2 22.2h3.6v1.2h-1.2v1.2h-1.2v-1.2h-1.2v-1.2z" />
+    </>
+  )
+}
+
+function WoRectificationGlyph() {
+  return (
+    <>
+      <path fill="currentColor" opacity="0.95" d="M14 10h8l6 4v12a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2z" />
+      <path fill="#fff" d="M16 18a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
+      <rect x="20" y="8" width="8" height="3" rx="1" fill="currentColor" />
+    </>
+  )
+}
+
+function WoNewInspectionGlyph() {
+  return (
+    <>
+      <circle cx="16" cy="16" r="10" fill="currentColor" opacity="0.95" />
+      <path fill="#fff" d="M16 11v10M11 16h10" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    </>
+  )
 }
 
 function WoRepairGlyph() {
@@ -117,18 +168,6 @@ function WoRepairGlyph() {
       <path
         fill="#fff"
         d="M11 11h10v2H11v-2zm0 4h10v1.5H11V15zm-1 6.5 2.2-2.2 3.8 3.8 6.5-6.5 2.1 2.1-8.6 8.6-6-6-2.1 2.1-1.9-1.9 2.1-2.1z"
-      />
-    </>
-  )
-}
-
-function WoFacilityGlyph() {
-  return (
-    <>
-      <rect x="6" y="5" width="20" height="26" rx="2" fill="currentColor" opacity="0.95" />
-      <path
-        fill="#fff"
-        d="M11 22V13l5-3 5 3v9h-2v-7l-3-1.8-3 1.8v7h-2zm1 3h8v2h-8v-2z"
       />
     </>
   )
@@ -158,6 +197,15 @@ function WoInspectionGlyph() {
   )
 }
 
+function WoFacilityGlyph() {
+  return (
+    <>
+      <rect x="6" y="5" width="20" height="26" rx="2" fill="currentColor" opacity="0.95" />
+      <path fill="#fff" d="M11 22V13l5-3 5 3v9h-2v-7l-3-1.8-3 1.8v7h-2zm1 3h8v2h-8v-2z" />
+    </>
+  )
+}
+
 function WoMyGlyph() {
   return (
     <>
@@ -171,6 +219,10 @@ function WoMyGlyph() {
 }
 
 const WO_GLYPHS: Record<MiniWorkOrderType | 'my', () => ReactNode> = {
+  safety: WoSafetyGlyph,
+  construction: WoConstructionGlyph,
+  rectification: WoRectificationGlyph,
+  newInspection: WoNewInspectionGlyph,
   repair: WoRepairGlyph,
   facility: WoFacilityGlyph,
   maintenance: WoMaintenanceGlyph,
@@ -192,6 +244,21 @@ export function WorkOrderIcon({ type, size = 32 }: { type: MiniWorkOrderType | '
 
 export function getWorkOrderIconColor(type: MiniWorkOrderType | 'my') {
   return WO_ICON_COLORS[type]
+}
+
+/** 首页：扫一扫 */
+export function ScanHomeIcon({ size = 36 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className="mini-wo-svg">
+      <rect x="5" y="5" width="22" height="22" rx="3" fill="none" stroke="#1890ff" strokeWidth="2" />
+      <path stroke="#1890ff" strokeWidth="2" d="M9 5v3M23 5v3M9 24v3M23 24v3M5 9h3M5 23h3M24 9h3M24 23h3" />
+      <rect x="11" y="11" width="4" height="4" fill="#1890ff" />
+      <rect x="17" y="11" width="4" height="4" fill="#1890ff" />
+      <rect x="11" y="17" width="4" height="4" fill="#1890ff" />
+      <rect x="17" y="17" width="2" height="2" fill="#1890ff" />
+      <rect x="19" y="19" width="2" height="2" fill="#1890ff" />
+    </svg>
+  )
 }
 
 /** 协作页：我的工单（线框列表图标） */

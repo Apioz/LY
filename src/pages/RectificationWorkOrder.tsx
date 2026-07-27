@@ -1,11 +1,13 @@
+import { useMemo, useState } from 'react'
 import { Table, Select, Space } from 'antd'
 import SearchBar from '../components/SearchBar'
 import { safetyLevelOptions } from '../mock/data'
+import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
 
 const columns = [
   { title: '序号', width: 60, render: (_: unknown, __: unknown, i: number) => i + 1 },
   { title: '工单编号', dataIndex: 'orderId', width: 200 },
-  { title: '地块名称', dataIndex: 'plot', width: 100 },
+  { title: '小区名称', dataIndex: 'community', width: 100 },
   { title: '所属区域', dataIndex: 'area', width: 100 },
   { title: '隐患问题', dataIndex: 'problem', width: 120 },
   { title: '安全类别', dataIndex: 'safetyCategory', width: 100 },
@@ -23,10 +25,33 @@ const columns = [
 ]
 
 export default function RectificationWorkOrder() {
+  const [communityFilter, setCommunityFilter] = useState<string>()
+
+  const filtered = useMemo(
+    () =>
+      [].filter((row: { community?: string }) => {
+        if (communityFilter && !matchesCommunityName(row.community, communityFilter)) return false
+        return true
+      }),
+    [communityFilter],
+  )
+
   return (
     <>
-      <SearchBar onSearch={() => {}} onClear={() => {}}>
+      <SearchBar
+        onSearch={() => {}}
+        onClear={() => setCommunityFilter(undefined)}
+      >
         <Space wrap>
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 160 }}
+            allowClear
+            value={communityFilter}
+            onChange={setCommunityFilter}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+          />
           <span>安全类别：</span>
           <Select placeholder="请选择安全类别" style={{ width: 160 }} allowClear />
           <span>安全等级：</span>
@@ -44,7 +69,13 @@ export default function RectificationWorkOrder() {
           <Select placeholder="请选择整改措施" style={{ width: 160 }} allowClear />
         </Space>
       </SearchBar>
-      <Table columns={columns} dataSource={[]} scroll={{ x: 2200 }} locale={{ emptyText: '暂无' }} style={{ padding: 16 }} />
+      <Table
+        columns={columns}
+        dataSource={filtered}
+        scroll={{ x: 2200 }}
+        locale={{ emptyText: '暂无' }}
+        style={{ padding: 16 }}
+      />
     </>
   )
 }

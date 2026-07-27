@@ -11,6 +11,7 @@ import {
 } from '../mock/alarmSettings2Data'
 import { getAlarmDeviceRules } from './alarmSettingsStore'
 import { canEditFacilityWorkOrderSettings } from './platformUser'
+import { normalizeCommunity } from '../constants/communities'
 
 function parseAlarmTimeMs(time: string) {
   return new Date(time.replace(/-/g, '/')).getTime()
@@ -181,6 +182,8 @@ export interface FacilityOrderItem {
   alarmDevice: string
   /** 设备安装位置 */
   installLocation: string
+  /** 小区名称 */
+  community: string
   level: AlarmLevel | string
   desc: AlarmDescType | string
   alarmTime: string
@@ -317,7 +320,8 @@ function isFacilityRepairingStatus(mini: string) {
 
 function normalizeOrder(o: FacilityOrderItem): FacilityOrderItem {
   const miniStatus = o.miniStatus ? legacyMiniStatus(String(o.miniStatus)) : legacyMiniStatus(String(o.status))
-  return { ...o, miniStatus, status: platformStatusFromMini(miniStatus) }
+  const community = normalizeCommunity(o.community, o.installLocation)
+  return { ...o, community, miniStatus, status: platformStatusFromMini(miniStatus) }
 }
 
 /** 原型演示用维修/损坏现场图片（小程序上传后写入 flowRecords.images，中台同步展示） */
@@ -872,6 +876,7 @@ export function syncAlarmToFacility(alarm: AlarmListItem): boolean {
       id: `SG-${alarm.id}`,
       alarmDevice: alarm.alarmDevice,
       installLocation: alarm.installLocation,
+      community: normalizeCommunity(alarm.community, alarm.installLocation),
       level: alarm.level,
       desc: alarm.desc,
       alarmTime: alarm.time,

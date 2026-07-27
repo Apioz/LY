@@ -13,6 +13,7 @@ export const monitorDeviceStats = [
 ]
 
 import { ALARM_DEVICE_CATEGORIES } from '../pages/alarm/constants'
+import { normalizeCommunity } from '../constants/communities'
 
 /** 消防设备资产类型可选值 */
 export const FIRE_DEVICE_ASSET_CATEGORIES = [
@@ -32,6 +33,8 @@ export const MONITOR_DEVICE_MONITOR_TYPES = MONITOR_DEVICE_ASSET_CATEGORIES
 
 export interface FireDeviceRow {
   key: string
+  /** 小区名称 */
+  community: string
   location: string
   /** 资产分类 */
   ID_资产分类: (typeof FIRE_DEVICE_ASSET_CATEGORIES)[number]
@@ -52,6 +55,8 @@ export interface FireDeviceRow {
 
 export interface MonitorDeviceRow {
   key: string
+  /** 小区名称 */
+  community: string
   location: string
   /** 资产类型 */
   ID_资产分类: (typeof MONITOR_DEVICE_ASSET_CATEGORIES)[number]
@@ -79,6 +84,7 @@ export interface MonitorDeviceRow {
 export const fireDeviceRows: FireDeviceRow[] = [
   {
     key: '1',
+    community: '双翼大厦',
     location: '工程楼 / 3F / 空调热水循环泵P-204机房',
     ID_资产分类: '生活水泵',
     ID_设备类型: '消防水泵',
@@ -96,6 +102,7 @@ export const fireDeviceRows: FireDeviceRow[] = [
   },
   {
     key: '2',
+    community: '双翼大厦',
     location: '工程楼 / 2F / 消防控制室主机机柜',
     ID_资产分类: '消防主机',
     ID_设备类型: '火灾报警控制器',
@@ -133,6 +140,7 @@ export const fireEventAlarmRows = [
 export const monitorDeviceRows: MonitorDeviceRow[] = [
   {
     key: '1',
+    community: normalizeCommunity(undefined, '东楼 / 1F / 东楼室外南-1F-00009') || '双翼大厦',
     location: '东楼 / 1F / 东楼室外南-1F-00009',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '枪机',
@@ -149,6 +157,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   },
   {
     key: '2',
+    community: normalizeCommunity(undefined, '研发实验室5A/1F/4号与5号电梯厅中间') || '中期大厦',
     location: '研发实验室5A/1F/4号与5号电梯厅中间',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '安防监控',
@@ -165,6 +174,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   },
   {
     key: '3',
+    community: '双翼大厦',
     location: '双翼大厦/1F/主入口门厅',
     ID_资产分类: '门禁系统',
     ID_设备类型: '安防监控',
@@ -181,6 +191,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   },
   {
     key: '4',
+    community: '森林湾大厦',
     location: '森林湾大厦/B1F/车库通道A',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '安防监控',
@@ -197,6 +208,7 @@ export const monitorDeviceRows: MonitorDeviceRow[] = [
   },
   {
     key: '5',
+    community: '中期大厦',
     location: '中期大厦/屋顶/设备平台西侧',
     ID_资产分类: '监控摄像头',
     ID_设备类型: '安防监控',
@@ -277,25 +289,173 @@ export const monitorLocationCascaderOptions = [
   },
 ]
 
-export const monitorTreeData = [
+export interface MonitorTreeNode {
+  title: string
+  key: string
+  community?: string
+  building?: string
+  isLeaf?: boolean
+  children?: MonitorTreeNode[]
+}
+
+/** 资源监控设备树：小区 → 楼栋 → 楼层 → 区域 */
+export const monitorTreeData: MonitorTreeNode[] = [
   {
-    title: '东楼 (138)',
-    key: 'building-east',
+    title: '双翼大厦 (138)',
+    key: 'community-shuangyi',
+    community: '双翼大厦',
     children: [
       {
-        title: '1F (35)',
-        key: 'floor-1f',
+        title: '东楼 (98)',
+        key: 'shuangyi-east',
+        community: '双翼大厦',
+        building: '东楼',
         children: [
-          { title: '门卫、消控室 (8)', key: 'area-guard', isLeaf: true },
-          { title: '候梯厅 (6)', key: 'area-elevator', isLeaf: true },
-          { title: '走道 (12)', key: 'area-corridor', isLeaf: true },
+          {
+            title: '1F (35)',
+            key: 'shuangyi-east-1f',
+            children: [
+              { title: '门卫、消控室 (8)', key: 'shuangyi-east-guard', isLeaf: true },
+              { title: '候梯厅 (6)', key: 'shuangyi-east-elevator', isLeaf: true },
+              { title: '走道 (12)', key: 'shuangyi-east-corridor', isLeaf: true },
+            ],
+          },
+          {
+            title: 'B1F (20)',
+            key: 'shuangyi-east-b1f',
+            children: [{ title: '地库消防控制室 (5)', key: 'shuangyi-east-b1-fire', isLeaf: true }],
+          },
+          {
+            title: '2F (43)',
+            key: 'shuangyi-east-2f',
+            children: [
+              { title: '配电间 (18)', key: 'shuangyi-east-power', isLeaf: true },
+              { title: '消防通道 (25)', key: 'shuangyi-east-fire-pass', isLeaf: true },
+            ],
+          },
         ],
       },
       {
-        title: 'B1F (20)',
-        key: 'floor-b1f',
-        children: [{ title: '地库消防控制室 (5)', key: 'area-b1-fire', isLeaf: true }],
+        title: 'B栋 (40)',
+        key: 'shuangyi-b',
+        community: '双翼大厦',
+        building: 'B栋',
+        children: [
+          {
+            title: '客梯机房 (12)',
+            key: 'shuangyi-b-elevator',
+            isLeaf: true,
+          },
+          {
+            title: '1F (28)',
+            key: 'shuangyi-b-1f',
+            children: [
+              { title: '主入口门厅 (10)', key: 'shuangyi-b-lobby', isLeaf: true },
+              { title: '消防控制室 (18)', key: 'shuangyi-b-fire-room', isLeaf: true },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    title: '中期大厦 (52)',
+    key: 'community-zhongqi',
+    community: '中期大厦',
+    children: [
+      {
+        title: '主楼 (52)',
+        key: 'zhongqi-main',
+        community: '中期大厦',
+        building: '主楼',
+        children: [
+          {
+            title: '29F (8)',
+            key: 'zhongqi-29f',
+            children: [{ title: '电梯机房 (8)', key: 'zhongqi-elevator-room', isLeaf: true }],
+          },
+          {
+            title: 'B1F (24)',
+            key: 'zhongqi-b1f',
+            children: [
+              { title: '高压配电间 (14)', key: 'zhongqi-power', isLeaf: true },
+              { title: '生活泵房 (10)', key: 'zhongqi-pump', isLeaf: true },
+            ],
+          },
+          {
+            title: '屋顶 (20)',
+            key: 'zhongqi-roof',
+            children: [{ title: '设备平台 (20)', key: 'zhongqi-roof-platform', isLeaf: true }],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    title: '森林湾大厦 (36)',
+    key: 'community-senlinwan',
+    community: '森林湾大厦',
+    children: [
+      {
+        title: 'A栋 (36)',
+        key: 'senlinwan-a',
+        community: '森林湾大厦',
+        building: 'A栋',
+        children: [
+          {
+            title: '3F (16)',
+            key: 'senlinwan-a-3f',
+            children: [{ title: '消防通道 (16)', key: 'senlinwan-a-fire-pass', isLeaf: true }],
+          },
+          {
+            title: 'B2F (20)',
+            key: 'senlinwan-a-b2f',
+            children: [
+              { title: '生活泵房 (12)', key: 'senlinwan-a-pump', isLeaf: true },
+              { title: '车库监控 (8)', key: 'senlinwan-a-garage', isLeaf: true },
+            ],
+          },
+        ],
       },
     ],
   },
 ]
+
+function parseTreeNodeCount(title: string) {
+  const match = title.match(/\((\d+)\)\s*$/)
+  return match ? Number(match[1]) : 0
+}
+
+/** 资源监控汇总（按小区节点统计） */
+export function getMonitorTreeSummary() {
+  const total = monitorTreeData.reduce((sum, node) => sum + parseTreeNodeCount(node.title), 0)
+  const online = Math.max(0, total - 5)
+  return { total, online, offline: total - online }
+}
+
+/** 根据树节点 key 解析小区名称 / 楼栋路径 */
+export function resolveMonitorTreePath(
+  key: string,
+  nodes: MonitorTreeNode[] = monitorTreeData,
+  trail: { community?: string; building?: string; labels: string[] } = { labels: [] },
+): { community?: string; building?: string; path: string } | null {
+  for (const node of nodes) {
+    const next = {
+      community: node.community ?? trail.community,
+      building: node.building ?? trail.building,
+      labels: [...trail.labels, node.title.replace(/\s*\(\d+\)\s*$/, '')],
+    }
+    if (node.key === key) {
+      return {
+        community: next.community,
+        building: next.building,
+        path: next.labels.join(' / '),
+      }
+    }
+    if (node.children?.length) {
+      const found = resolveMonitorTreePath(key, node.children, next)
+      if (found) return found
+    }
+  }
+  return null
+}

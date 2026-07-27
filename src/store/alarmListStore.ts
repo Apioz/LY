@@ -1,11 +1,19 @@
 import type { AlarmListItem } from '../mock/alarmData'
 import { alarmListData } from '../mock/alarmData'
+import { normalizeCommunity } from '../constants/communities'
 import {
   processAlarmAutoResolve,
   type AlarmAutoResolveSignal,
 } from './alarmSync'
 
-let alarmList: AlarmListItem[] = alarmListData.map((item) => ({ ...item }))
+function normalizeAlarmItem(item: AlarmListItem): AlarmListItem {
+  return {
+    ...item,
+    community: normalizeCommunity(item.community, item.installLocation),
+  }
+}
+
+let alarmList: AlarmListItem[] = alarmListData.map(normalizeAlarmItem)
 const listeners = new Set<() => void>()
 
 function notify() {
@@ -25,7 +33,11 @@ export function subscribeAlarmList(listener: () => void) {
 
 /** 按告警编号更新单条（原型用） */
 export function patchAlarmListItem(alarmId: string, patch: Partial<AlarmListItem>) {
-  alarmList = alarmList.map((item) => (item.id === alarmId ? { ...item, ...patch } : item))
+  alarmList = alarmList.map((item) =>
+    item.id === alarmId
+      ? normalizeAlarmItem({ ...item, ...patch })
+      : item,
+  )
   notify()
 }
 

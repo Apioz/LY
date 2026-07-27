@@ -1,4 +1,5 @@
 import { MINI_CURRENT_USER } from '../store/miniProgramUser'
+import { normalizeCommunity } from '../constants/communities'
 import {
   MINI_FACILITY_STATUS,
   type FacilityFlowRecord,
@@ -9,7 +10,17 @@ import {
   type MiniFacilityStatus,
 } from '../store/alarmSync'
 
-export type MiniWorkOrderType = 'repair' | 'facility' | 'maintenance' | 'inspection'
+export type MiniWorkOrderType =
+  | 'safety'
+  | 'construction'
+  | 'rectification'
+  | 'newInspection'
+  | 'repair'
+  | 'facility'
+  | 'maintenance'
+  | 'inspection'
+
+export type MiniInspectionCategory = '消防' | '电气' | '施工作业'
 
 export interface MiniFlowRecord {
   time: string
@@ -28,6 +39,8 @@ export interface MiniWorkOrder {
   createTime: string
   initiator: string
   receiver: string
+  /** 小区名称 */
+  community?: string
   location?: string
   description?: string
   extra?: Record<string, string>
@@ -53,16 +66,32 @@ export interface MiniHandledRecord {
 }
 
 export const MINI_TYPE_LABELS: Record<MiniWorkOrderType, string> = {
+  safety: '安全检查',
+  construction: '施工检查',
+  rectification: '整改工单',
+  newInspection: '新增检查',
   repair: '报修',
   facility: '设施',
   maintenance: '维保',
   inspection: '巡检',
 }
 
+/** 小程序检查类工单列表 Tab */
+export const MINI_LIST_TABS: MiniWorkOrderType[] = ['safety', 'construction', 'rectification', 'newInspection']
+
+/** 小程序经典工单列表 Tab（报修/设施/维保/巡检） */
+export const MINI_CLASSIC_TABS: MiniWorkOrderType[] = ['repair', 'facility', 'maintenance', 'inspection']
+
 /** 设施工单全部展示状态（含已取消，用于详情等） */
 export const MINI_FACILITY_LIST_STATUS = ['待接单', '待完成', '已完成', '已取消', '损坏'] as const
 
+export const MINI_INSPECTION_STATUSES = ['待处理', '处理中', '待复查', '已完成', '已取消'] as const
+
 export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
+  safety: [...MINI_INSPECTION_STATUSES],
+  construction: [...MINI_INSPECTION_STATUSES],
+  rectification: [...MINI_INSPECTION_STATUSES],
+  newInspection: [...MINI_INSPECTION_STATUSES],
   repair: ['待派单', '待审核', '待接单', '报修待完成', '待签字', '待关单', '已关单', '已取消'],
   facility: [...MINI_FACILITY_LIST_STATUS],
   maintenance: ['待派单', '待审核', '待接单', '处理中', '已完成', '已取消'],
@@ -71,6 +100,10 @@ export const MINI_TYPE_STATUS: Record<MiniWorkOrderType, string[]> = {
 
 /** 工单列表筛选状态（不含已取消；已取消仅在「我的已办」可见） */
 export const MINI_LIST_FILTER_STATUS: Record<MiniWorkOrderType, string[]> = {
+  safety: MINI_TYPE_STATUS.safety.filter((s) => s !== '已取消'),
+  construction: MINI_TYPE_STATUS.construction.filter((s) => s !== '已取消'),
+  rectification: MINI_TYPE_STATUS.rectification.filter((s) => s !== '已取消'),
+  newInspection: MINI_TYPE_STATUS.newInspection.filter((s) => s !== '已取消'),
   repair: MINI_TYPE_STATUS.repair.filter((s) => s !== '已取消'),
   facility: MINI_FACILITY_LIST_STATUS.filter((s) => s !== '已取消'),
   maintenance: MINI_TYPE_STATUS.maintenance.filter((s) => s !== '已取消'),
@@ -79,8 +112,6 @@ export const MINI_LIST_FILTER_STATUS: Record<MiniWorkOrderType, string[]> = {
 
 export const MINI_DONE_STATUSES = ['已完成', '已处理', '已关单'] as const
 export const MINI_CANCELLED_STATUS = '已取消'
-
-export const MINI_LIST_TABS: MiniWorkOrderType[] = ['repair', 'facility', 'maintenance', 'inspection']
 
 /** 工单池可见状态：未接单前全员可见 + 损坏可再次接单 */
 export const FACILITY_POOL_STATUSES: MiniFacilityStatus[] = ['待接单', '损坏']
@@ -99,12 +130,243 @@ export const miniNotices = [
 ]
 
 export const miniUpdates = [
-  { id: '1', title: '双翼大厦消防水泵告警已同步设施工单', time: '2026-06-01 11:20' },
-  { id: '2', title: '巡检任务「办公楼消防通道」已完成', time: '2026-05-31 16:40' },
-  { id: '3', title: '报修工单 BX20260530001 处理完成', time: '2026-05-30 09:15' },
+  { id: '1', title: '安全检查工单「电梯闭灯隐患」已派单', time: '2026-06-01 11:20' },
+  { id: '2', title: '施工检查工单「脚手架防护」待复查', time: '2026-05-31 16:40' },
+  { id: '3', title: '整改工单 ZG20260530001 处理完成', time: '2026-05-30 09:15' },
 ]
 
+function buildInspectionOrder(
+  id: string,
+  type: Exclude<MiniWorkOrderType, 'facility'>,
+  category: MiniInspectionCategory,
+  hazard: string,
+  desc: string,
+  status: string,
+  createTime: string,
+  community: string,
+  initiator: string,
+  receiver: string,
+  point?: { pointId: string; location: string },
+): MiniWorkOrder {
+  return {
+    id,
+    type,
+    title: hazard,
+    status,
+    createTime,
+    initiator,
+    receiver,
+    community,
+    location: point?.location,
+    extra: {
+      隐患类别: category,
+      隐患问题: hazard,
+      问题描述: desc,
+      ...(point ? { 点位编号: point.pointId, 空间位置: point.location } : {}),
+    },
+    flowRecords: [{ time: createTime, action: `创建${MINI_TYPE_LABELS[type]}`, operator: initiator }],
+  }
+}
+
 let localOrders: MiniWorkOrder[] = [
+  buildInspectionOrder(
+    'AQ20250907001',
+    'safety',
+    '消防',
+    '电梯内闭灯无光源，易造成恐慌',
+    '灯不亮',
+    '待处理',
+    '2025-09-07 15:13:11',
+    '双翼大厦',
+    '王主管',
+    MINI_CURRENT_USER,
+    { pointId: 'PT202604270077', location: '1号楼/2F/办公区' },
+  ),
+  buildInspectionOrder(
+    'AQ20250907002',
+    'safety',
+    '消防',
+    '灭火器、墙挂式消火栓',
+    '部件有腐蚀',
+    '处理中',
+    '2025-09-07 14:20:00',
+    '双翼大厦',
+    '李四',
+    MINI_CURRENT_USER,
+    { pointId: 'PT202605130003', location: '1号楼/B2F/消防泵房' },
+  ),
+  buildInspectionOrder(
+    'AQ20250906003',
+    'safety',
+    '电气',
+    '配电间电缆桥架接地缺失',
+    '需补做接地',
+    '待处理',
+    '2025-09-06 10:05:22',
+    '天山路473号',
+    '调度员',
+    '-',
+    { pointId: 'PT202605140002', location: '1号楼/2F/配电间' },
+  ),
+  buildInspectionOrder(
+    'AQ20250905004',
+    'safety',
+    '施工作业',
+    '临时用电线路未架空',
+    '线路拖地存在隐患',
+    '待复查',
+    '2025-09-05 16:40:18',
+    '中期大厦',
+    MINI_CURRENT_USER,
+    MINI_CURRENT_USER,
+    { pointId: 'PT202604280001', location: '1号楼/29F/电梯机房' },
+  ),
+  buildInspectionOrder(
+    'AQ20250830005',
+    'safety',
+    '消防',
+    '安全出口指示标志损坏',
+    '标志灯不亮',
+    '已完成',
+    '2025-08-30 09:12:00',
+    '双翼大厦',
+    MINI_CURRENT_USER,
+    MINI_CURRENT_USER,
+    { pointId: 'PT202605140001', location: '1号楼/1F/生活水泵房' },
+  ),
+  buildInspectionOrder(
+    'AQ20250907003',
+    'safety',
+    '消防',
+    '消防泵房阀门渗漏',
+    '阀门接口渗水需紧固',
+    '待处理',
+    '2025-09-07 10:20:00',
+    '双翼大厦',
+    '王主管',
+    '-',
+    { pointId: 'PT202605130003', location: '1号楼/B2F/消防泵房' },
+  ),
+  buildInspectionOrder(
+    'SG20250907001',
+    'construction',
+    '施工作业',
+    '高处作业未系安全带',
+    '3层外墙施工区域',
+    '待处理',
+    '2025-09-07 11:30:00',
+    '双翼大厦',
+    '安全员',
+    MINI_CURRENT_USER,
+  ),
+  buildInspectionOrder(
+    'SG20250906002',
+    'construction',
+    '施工作业',
+    '脚手架防护网破损',
+    '东侧脚手架第2层',
+    '处理中',
+    '2025-09-06 08:45:00',
+    '森林湾大厦',
+    '王主管',
+    MINI_CURRENT_USER,
+  ),
+  buildInspectionOrder(
+    'SG20250901003',
+    'construction',
+    '电气',
+    '施工现场临时配电箱无锁',
+    '箱门未上锁',
+    '待处理',
+    '2025-09-01 14:00:00',
+    '天山路473号',
+    '李四',
+    '-',
+  ),
+  buildInspectionOrder(
+    'ZG20250907001',
+    'rectification',
+    '消防',
+    '消防通道堆放杂物',
+    'B栋2层通道',
+    '待处理',
+    '2025-09-07 09:20:00',
+    '双翼大厦',
+    '检查员',
+    MINI_CURRENT_USER,
+  ),
+  buildInspectionOrder(
+    'ZG20250905002',
+    'rectification',
+    '电气',
+    '弱电机房私拉乱接',
+    '机房内临时接线',
+    '处理中',
+    '2025-09-05 13:15:00',
+    '中期大厦',
+    MINI_CURRENT_USER,
+    MINI_CURRENT_USER,
+  ),
+  buildInspectionOrder(
+    'ZG20250828003',
+    'rectification',
+    '施工作业',
+    '动火作业未办理审批',
+    '地下车库焊接作业',
+    '待复查',
+    '2025-08-28 17:00:00',
+    '森林湾大厦',
+    '安全员',
+    MINI_CURRENT_USER,
+  ),
+  buildInspectionOrder(
+    'XZ20250907001',
+    'newInspection',
+    '消防',
+    '电梯内闭灯无光源，易造成恐慌',
+    '灯不亮',
+    '待处理',
+    '2025-09-07 15:13:11',
+    '双翼大厦',
+    MINI_CURRENT_USER,
+    '-',
+  ),
+  buildInspectionOrder(
+    'XZ20250907002',
+    'newInspection',
+    '消防',
+    '灭火器、墙挂式消火栓',
+    '部件有腐蚀',
+    '待处理',
+    '2025-09-07 14:55:00',
+    '森林湾大厦',
+    MINI_CURRENT_USER,
+    '-',
+  ),
+  buildInspectionOrder(
+    'XZ20250906003',
+    'newInspection',
+    '施工作业',
+    '临边防护栏杆缺失',
+    '屋面边缘区域',
+    '待处理',
+    '2025-09-06 11:20:00',
+    '天山路473号',
+    '王主管',
+    '-',
+  ),
+  buildInspectionOrder(
+    'XZ20250904004',
+    'newInspection',
+    '电气',
+    '配电柜警示标识缺失',
+    '1号配电柜',
+    '处理中',
+    '2025-09-04 10:30:00',
+    '中期大厦',
+    MINI_CURRENT_USER,
+    MINI_CURRENT_USER,
+  ),
   {
     id: 'BX20260604001',
     type: 'repair',
@@ -113,6 +375,7 @@ let localOrders: MiniWorkOrder[] = [
     createTime: '2026-06-04 16:48:06',
     initiator: '李四',
     receiver: MINI_CURRENT_USER,
+    community: '双翼大厦',
     location: '双翼大厦5101实验室',
     description: '5101实验室天花板漏水',
     extra: { 问题类型: '日常报修', 问题描述: '5101实验室天花板漏水' },
@@ -129,59 +392,11 @@ let localOrders: MiniWorkOrder[] = [
     createTime: '2026-06-04 15:30:00',
     initiator: '王主管',
     receiver: '-',
+    community: '森林湾大厦',
     location: '森林湾大厦3层',
     description: '消防通道应急指示灯不亮',
     extra: { 问题类型: '日常报修', 问题描述: '消防通道应急指示灯不亮' },
     flowRecords: [{ time: '2026-06-04 15:30:00', action: '提交报修工单', operator: '王主管' }],
-  },
-  {
-    id: 'BX20260601001',
-    type: 'repair',
-    title: '天山路473号消火栓漏水',
-    status: '待派单',
-    createTime: '2026-06-01 08:30:00',
-    initiator: MINI_CURRENT_USER,
-    receiver: '-',
-    location: '天山路473号',
-    description: '地下一层消火栓接口渗水',
-    extra: { 问题类型: '日常报修', 问题描述: '地下一层消火栓接口渗水' },
-    flowRecords: [
-      { time: '2026-06-01 08:30:00', action: '提交报修工单', operator: MINI_CURRENT_USER },
-      { time: '2026-06-01 08:30:00', action: '工单状态：待派单', operator: '—' },
-    ],
-  },
-  {
-    id: 'BX20260528002',
-    type: 'repair',
-    title: '森林湾大厦电梯厅照明故障',
-    status: '报修待完成',
-    createTime: '2026-05-28 14:20:00',
-    initiator: '李四',
-    receiver: MINI_CURRENT_USER,
-    location: '森林湾大厦B栋',
-    description: '电梯厅照明灯具损坏需更换',
-    extra: { 问题类型: '日常报修', 问题描述: '电梯厅照明灯具损坏需更换' },
-    flowRecords: [
-      { time: '2026-05-28 14:20:00', action: '提交报修工单', operator: '李四' },
-      { time: '2026-05-28 15:00:00', action: '派单', operator: '调度员' },
-      { time: '2026-05-28 15:05:00', action: '维修人员接单', operator: MINI_CURRENT_USER },
-    ],
-  },
-  {
-    id: 'BX20260520003',
-    type: 'repair',
-    title: '中期大厦烟感误报',
-    status: '已取消',
-    createTime: '2026-05-20 11:00:00',
-    initiator: MINI_CURRENT_USER,
-    receiver: '-',
-    location: '中期大厦5层',
-    description: '烟感探测器误报，现场无异常',
-    extra: { 问题类型: '日常报修', 问题描述: '烟感探测器误报，现场无异常' },
-    flowRecords: [
-      { time: '2026-05-20 11:00:00', action: '提交报修工单', operator: MINI_CURRENT_USER },
-      { time: '2026-05-20 14:00:00', action: '工单已取消', operator: '调度员' },
-    ],
   },
   {
     id: 'WB20260525001',
@@ -191,23 +406,10 @@ let localOrders: MiniWorkOrder[] = [
     createTime: '2026-05-25 09:00:00',
     initiator: '王主管',
     receiver: '-',
+    community: '双翼大厦',
     location: '双翼大厦消防控制室',
     extra: { 维保类型: '季度维保' },
     flowRecords: [{ time: '2026-05-25 09:00:00', action: '创建维保工单', operator: '王主管' }],
-  },
-  {
-    id: 'WB20260520002',
-    type: 'maintenance',
-    title: '喷淋系统月度检测',
-    status: '已完成',
-    createTime: '2026-05-20 10:00:00',
-    initiator: MINI_CURRENT_USER,
-    receiver: MINI_CURRENT_USER,
-    location: '中期大厦',
-    flowRecords: [
-      { time: '2026-05-20 10:00:00', action: '创建维保工单', operator: MINI_CURRENT_USER },
-      { time: '2026-05-21 16:00:00', action: '工单状态：已完成', operator: MINI_CURRENT_USER },
-    ],
   },
   {
     id: 'XJ20260521001',
@@ -217,22 +419,9 @@ let localOrders: MiniWorkOrder[] = [
     createTime: '2026-05-21 10:07:00',
     initiator: '调度员',
     receiver: MINI_CURRENT_USER,
+    community: '双翼大厦',
     extra: { 巡检类型: '办公楼', 巡检计划: 'NFC、二维码、手动巡检路线' },
     flowRecords: [{ time: '2026-05-21 10:07:00', action: '下发巡检任务', operator: '调度员' }],
-  },
-  {
-    id: 'XJ20260518002',
-    type: 'inspection',
-    title: '地下停车场消防设施巡检',
-    status: '执行中',
-    createTime: '2026-05-18 08:00:00',
-    initiator: MINI_CURRENT_USER,
-    receiver: MINI_CURRENT_USER,
-    extra: { 巡检类型: '停车场', 巡检计划: '每日例行巡检' },
-    flowRecords: [
-      { time: '2026-05-18 08:00:00', action: '下发巡检任务', operator: MINI_CURRENT_USER },
-      { time: '2026-05-18 08:30:00', action: '开始执行', operator: MINI_CURRENT_USER },
-    ],
   },
 ]
 
@@ -285,6 +474,7 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
   const device = item.alarmDevice
   const view = resolveFacilityStatusView(item)
   const arrivalTime = getFacilityArrivalTime(item)
+  const community = normalizeCommunity(item.community, item.installLocation)
   return {
     id: item.id,
     facilityId: item.id,
@@ -294,6 +484,7 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
     createTime: item.alarmTime,
     initiator: item.initiator ?? '系统',
     receiver: item.receiver,
+    community,
     repairStarted: !!item.repairStarted,
     description:
       item.damageNote
@@ -305,6 +496,7 @@ export function facilityToMiniOrder(item: FacilityOrderItem): MiniWorkOrder {
             : undefined,
     extra: {
       工单编号: item.id,
+      小区名称: community,
       告警设备: device,
       安装位置: item.installLocation,
       告警等级: String(item.level),
@@ -376,28 +568,120 @@ export function getWorkOrderListByType(orders: MiniWorkOrder[], type: MiniWorkOr
   return orders.filter((o) => o.type === type && isVisibleInWorkOrderList(o))
 }
 
+/** 读取工单小区名称（设施工单优先 extra，其他类型读 community 或 location 解析） */
+export function getOrderCommunity(order: MiniWorkOrder): string {
+  if (order.community?.trim()) return order.community.trim()
+  if (order.extra?.['小区名称']?.trim()) return order.extra['小区名称'].trim()
+  if (order.location?.trim()) {
+    const fromLocation = normalizeCommunity(undefined, order.location)
+    if (fromLocation !== '—') return fromLocation
+  }
+  return '—'
+}
+
 export function getMiniOrderById(id: string, facilityOrders: FacilityOrderItem[]): MiniWorkOrder | undefined {
   const handled = handledRecords.find((r) => r.id === id)
   if (handled) return handledToMiniOrder(handled)
   return getAllMiniOrders(facilityOrders).find((o) => o.id === id)
 }
 
+export function isInspectionWorkOrderType(type: MiniWorkOrderType): boolean {
+  return (MINI_LIST_TABS as MiniWorkOrderType[]).includes(type)
+}
+
+export function isClassicWorkOrderType(type: MiniWorkOrderType): boolean {
+  return (MINI_CLASSIC_TABS as MiniWorkOrderType[]).includes(type)
+}
+
+export function getListTabsForType(type: MiniWorkOrderType): MiniWorkOrderType[] {
+  return isClassicWorkOrderType(type) ? MINI_CLASSIC_TABS : MINI_LIST_TABS
+}
+
+export function getMiniOrderPointId(order: MiniWorkOrder): string | undefined {
+  return order.extra?.['点位编号']
+}
+
+export function getSafetyOrdersByPointId(pointId: string): MiniWorkOrder[] {
+  return localOrders.filter(
+    (o) => o.type === 'safety' && o.extra?.['点位编号'] === pointId && o.status !== MINI_CANCELLED_STATUS,
+  )
+}
+
+export function updateMiniOrder(id: string, patch: Partial<MiniWorkOrder> & { flowRecord?: MiniFlowRecord }) {
+  localOrders = localOrders.map((o) => {
+    if (o.id !== id) return o
+    const next: MiniWorkOrder = { ...o, ...patch, extra: patch.extra ? { ...o.extra, ...patch.extra } : o.extra }
+    if (patch.flowRecord) {
+      next.flowRecords = [...o.flowRecords, patch.flowRecord]
+    }
+    return next
+  })
+  notify()
+}
+
+function nowText() {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** 扫码后开始处理安全检查工单 */
+export function startSafetyOrderProcessing(id: string) {
+  const order = localOrders.find((o) => o.id === id)
+  if (!order || order.type !== 'safety') return
+  const time = nowText()
+  updateMiniOrder(id, {
+    status: '处理中',
+    receiver: MINI_CURRENT_USER,
+    flowRecord: { time, action: '扫码开始处理', operator: MINI_CURRENT_USER },
+  })
+}
+
+export function submitSafetyOrderProcessing(id: string, note: string, complete: boolean) {
+  const time = nowText()
+  updateMiniOrder(id, {
+    status: complete ? '待复查' : '处理中',
+    extra: { 处理说明: note },
+    flowRecord: {
+      time,
+      action: complete ? '提交处理结果' : '暂存处理进度',
+      operator: MINI_CURRENT_USER,
+      detail: note,
+    },
+  })
+}
+
 export function countByType(orders: MiniWorkOrder[], facilityOrders: FacilityOrderItem[]) {
+  const countInspectionActive = (type: MiniWorkOrderType) =>
+    orders.filter(
+      (o) =>
+        o.type === type &&
+        !o.archiveOnly &&
+        o.status !== '已完成' &&
+        o.status !== MINI_CANCELLED_STATUS,
+    ).length
+
   const pool = getFacilityListOrders(facilityOrders)
+
   return {
+    safety: countInspectionActive('safety'),
+    construction: countInspectionActive('construction'),
+    rectification: countInspectionActive('rectification'),
+    newInspection: countInspectionActive('newInspection'),
     repair: orders.filter(
       (o) => o.type === 'repair' && !['已完成', '已关单', '已取消'].includes(o.status),
     ).length,
     facility: pool.length,
-    maintenance: orders.filter((o) => o.type === 'maintenance' && o.status !== '已完成').length,
-    inspection: orders.filter((o) => o.type === 'inspection' && o.status !== '已完成').length,
+    maintenance: orders.filter((o) => o.type === 'maintenance' && o.status !== '已完成' && o.status !== MINI_CANCELLED_STATUS).length,
+    inspection: orders.filter((o) => o.type === 'inspection' && o.status !== '已完成' && o.status !== MINI_CANCELLED_STATUS).length,
     my: orders.filter(
       (o) =>
-        o.initiator === MINI_CURRENT_USER ||
-        o.receiver === MINI_CURRENT_USER ||
-        (o.type === 'facility' &&
-          o.receiver === MINI_CURRENT_USER &&
-          o.status === '待完成'),
+        !o.archiveOnly &&
+        (o.initiator === MINI_CURRENT_USER ||
+          o.receiver === MINI_CURRENT_USER ||
+          (o.type === 'facility' &&
+            o.receiver === MINI_CURRENT_USER &&
+            o.status === '待完成')),
     ).length,
   }
 }

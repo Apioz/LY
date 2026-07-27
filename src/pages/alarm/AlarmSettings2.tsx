@@ -45,11 +45,12 @@ import {
   type AlarmDeviceRule2,
   type AlarmSettings2TreeRow,
 } from '../../mock/alarmSettings2Data'
+import { COMMUNITIES, matchesCommunityName } from '../../constants/communities'
 
 const { Text } = Typography
 
 const COL_WIDTH = 140
-const COLUMN_COUNT = 7
+const COLUMN_COUNT = 8
 const NONE_THRESHOLD_TIP = '仅启用第三方推送的告警信息，不做额外阈值设置。'
 const DEVICE_TIMEOUT_TIP =
   '本系统对设备状态做监控，设备超过设定离线判定时长未响应将被判定为离线并触发设备超时报警。'
@@ -69,6 +70,7 @@ function filterRules(
   rules: AlarmDeviceRule2[],
   deviceKeyword?: string,
   level?: string,
+  community?: string,
   dateRange?: [Dayjs, Dayjs] | null,
 ) {
   return rules.filter((r) => {
@@ -79,6 +81,7 @@ function filterRules(
       if (!hit) return false
     }
     if (level && r.level !== level) return false
+    if (community && !matchesCommunityName(r.community, community)) return false
     if (dateRange?.[0] && dateRange?.[1]) {
       const t = new Date(r.createTime.replace(/-/g, '/')).getTime()
       const start = dateRange[0].startOf('day').valueOf()
@@ -98,6 +101,7 @@ function collectExpandKeysForSearch(rules: AlarmDeviceRule2[]): React.Key[] {
 }
 
 function buildRulePatchFromForm(values: {
+  community: string
   level: string
   thresholdMode: ThresholdMode
   customMinutes?: number
@@ -105,6 +109,7 @@ function buildRulePatchFromForm(values: {
   workOrderDelayMinutes?: number
 }) {
   return {
+    community: values.community,
     level: values.level,
     thresholdMode: values.thresholdMode,
     customMinutes: values.thresholdMode === 'deviceTimeout' ? values.customMinutes : undefined,
@@ -122,9 +127,11 @@ export default function AlarmSettings2() {
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([])
   const [draftKeyword, setDraftKeyword] = useState('')
   const [draftLevel, setDraftLevel] = useState<string>()
+  const [draftCommunity, setDraftCommunity] = useState<string>()
   const [draftDateRange, setDraftDateRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [appliedKeyword, setAppliedKeyword] = useState('')
   const [appliedLevel, setAppliedLevel] = useState<string>()
+  const [appliedCommunity, setAppliedCommunity] = useState<string>()
   const [appliedDateRange, setAppliedDateRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [modal, setModal] = useState<'add' | 'edit' | 'view' | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
@@ -136,18 +143,19 @@ export default function AlarmSettings2() {
   useEffect(() => subscribeAlarmDeviceRules(() => setRules([...getAlarmDeviceRules()])), [])
 
   const filteredRules = useMemo(
-    () => filterRules(rules, appliedKeyword, appliedLevel, appliedDateRange),
-    [rules, appliedKeyword, appliedLevel, appliedDateRange],
+    () => filterRules(rules, appliedKeyword, appliedLevel, appliedCommunity, appliedDateRange),
+    [rules, appliedKeyword, appliedLevel, appliedCommunity, appliedDateRange],
   )
 
   const displayFilter = useMemo(
     () => ({
       keyword: appliedKeyword,
       level: appliedLevel,
+      community: appliedCommunity,
       dateStart: appliedDateRange?.[0]?.startOf('day').valueOf(),
       dateEnd: appliedDateRange?.[1]?.endOf('day').valueOf(),
     }),
-    [appliedKeyword, appliedLevel, appliedDateRange],
+    [appliedKeyword, appliedLevel, appliedCommunity, appliedDateRange],
   )
 
   const treeData = useMemo(
@@ -160,9 +168,10 @@ export default function AlarmSettings2() {
   const handleSearch = () => {
     setAppliedKeyword(draftKeyword)
     setAppliedLevel(draftLevel)
+    setAppliedCommunity(draftCommunity)
     setAppliedDateRange(draftDateRange)
-    const nextFiltered = filterRules(rules, draftKeyword, draftLevel, draftDateRange)
-    if (draftKeyword.trim() || draftLevel || draftDateRange) {
+    const nextFiltered = filterRules(rules, draftKeyword, draftLevel, draftCommunity, draftDateRange)
+    if (draftKeyword.trim() || draftLevel || draftCommunity || draftDateRange) {
       setExpandedRowKeys(collectExpandKeysForSearch(nextFiltered))
     } else {
       setExpandedRowKeys([])
@@ -173,9 +182,11 @@ export default function AlarmSettings2() {
   const handleClear = () => {
     setDraftKeyword('')
     setDraftLevel(undefined)
+    setDraftCommunity(undefined)
     setDraftDateRange(null)
     setAppliedKeyword('')
     setAppliedLevel(undefined)
+    setAppliedCommunity(undefined)
     setAppliedDateRange(null)
     setExpandedRowKeys([])
   }
@@ -187,6 +198,7 @@ export default function AlarmSettings2() {
     form.resetFields()
     form.setFieldsValue({
       subCategoryPaths: presetPaths ?? [],
+      community: COMMUNITIES[0],
       thresholdMode: 'deviceTimeout',
       customMinutes: DEFAULT_TIMEOUT_MINUTES,
       level: '三级告警',
@@ -203,6 +215,7 @@ export default function AlarmSettings2() {
     setViewingKey(null)
     form.setFieldsValue({
       subCategoryPaths: [ruleToSubCategoryPath(record)],
+      community: record.community,
       level: record.level,
       thresholdMode: record.thresholdMode,
       customMinutes: record.customMinutes ?? DEFAULT_TIMEOUT_MINUTES,
@@ -296,6 +309,13 @@ export default function AlarmSettings2() {
   const isCategoryRow = (record: AlarmSettings2TreeRow) => record.rowType === 'category'
 
   const columns: ColumnsType<AlarmSettings2TreeRow> = [
+    {
+      title: '小区名称',
+      dataIndex: 'community',
+      width: 120,
+      ellipsis: true,
+      render: (v, record) => (isCategoryRow(record) ? v : ''),
+    },
     {
       title: '告警设备',
       dataIndex: 'name',
@@ -452,6 +472,22 @@ export default function AlarmSettings2() {
             onChange={setDraftLevel}
             options={ALARM_LEVELS.map((v) => ({ value: v, label: v }))}
           />
+          <span>小区名称：</span>
+          <Select
+            placeholder="请选择小区名称"
+            style={{ width: 160 }}
+            allowClear
+            value={draftCommunity}
+            onChange={(v) => {
+              setDraftCommunity(v)
+              setAppliedCommunity(v)
+              if (v) {
+                const nextFiltered = filterRules(rules, appliedKeyword, appliedLevel, v, appliedDateRange)
+                setExpandedRowKeys(collectExpandKeysForSearch(nextFiltered))
+              }
+            }}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+          />
           <span>创建时间：</span>
           <DatePicker.RangePicker
             value={draftDateRange}
@@ -511,6 +547,13 @@ export default function AlarmSettings2() {
       >
         <Form form={form} layout="vertical">
           <Form.Item
+            name="community"
+            label="小区名称"
+            rules={[{ required: true, message: '请选择小区名称' }]}
+          >
+            <Select placeholder="请选择小区名称" options={COMMUNITIES.map((v) => ({ value: v, label: v }))} />
+          </Form.Item>
+          <Form.Item
             name="subCategoryPaths"
             label="告警设备"
             rules={[{ required: true, message: '请选择告警设备' }]}
@@ -550,6 +593,7 @@ export default function AlarmSettings2() {
         {viewingRule && (
           <>
             <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="小区名称">{viewingRule.community}</Descriptions.Item>
               <Descriptions.Item label="告警设备">
                 {viewingRule.rootCategory} / {viewingRule.subCategory}
               </Descriptions.Item>

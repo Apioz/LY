@@ -1,5 +1,6 @@
 import type { AlarmLevel, AlarmStatus, AlarmDescType } from '../pages/alarm/constants'
 import { DEFAULT_TIMEOUT_MINUTES } from '../pages/alarm/constants'
+import { COMMUNITIES, matchesAnyCommunityName, matchesCommunityName } from '../constants/communities'
 
 export type AlarmListStatus = AlarmStatus | '告警' | '自动解除告警'
 
@@ -11,6 +12,8 @@ export interface AlarmListItem {
   alarmDevice: string
   /** 设备安装位置 */
   installLocation: string
+  /** 小区名称 */
+  community?: string
   desc: AlarmDescType
   status: AlarmListStatus
   time: string
@@ -138,12 +141,21 @@ export function getKpiCards(period: AlarmKpiPeriod) {
 
 /** 小程序数据页：今日 / 本周 / 本月，与中台告警统计 KPI 同源 */
 export function getKpiCardsByRange(range: AlarmKpiRange) {
+  return getKpiCards(alarmKpiRangeToPeriod(range))
+}
+
+export function alarmKpiRangeToPeriod(range: AlarmKpiRange): AlarmKpiPeriod {
   const periodMap: Record<AlarmKpiRange, AlarmKpiPeriod> = {
     today: 'day',
     week: 'week',
     month: 'month',
   }
-  return getKpiCards(periodMap[range])
+  return periodMap[range]
+}
+
+/** 小程序与中台告警统计：按时间范围 + 小区筛选计算 KPI */
+export function getKpiCardsByRangeFromAlarms(alarms: AlarmListItem[], range: AlarmKpiRange) {
+  return getKpiCardsFromAlarms(alarms, alarmKpiRangeToPeriod(range))
 }
 
 export function getLevelDistributionFour() {
@@ -153,6 +165,65 @@ export function getLevelDistributionFour() {
     { name: '三级告警', value: 26.9 },
     { name: '四级告警', value: 19.3 },
   ]
+}
+
+/** 按小区过滤告警列表 */
+export function filterAlarmsByCommunities(alarms: AlarmListItem[], communities?: string[]) {
+  if (!communities?.length) return alarms
+  return alarms.filter((a) => matchesAnyCommunityName(a.community, communities))
+}
+
+/** 选中小区占全部告警的比例（用于 KPI / 趋势缩放） */
+export function getCommunityFilterRatio(alarms: AlarmListItem[], communities?: string[]) {
+  if (!communities?.length || !alarms.length) return 1
+  return filterAlarmsByCommunities(alarms, communities).length / alarms.length
+}
+
+export function getKpiCardsFromAlarms(alarms: AlarmListItem[], period: AlarmKpiPeriod) {
+  const ratio = alarms.length ? 1 : 0
+  const pending = alarms.filter((a) => a.status === '待处理' || a.status === '告警').length
+  const processed = alarms.filter((a) => a.status === '已处理' || a.status === '自动解除告警').length
+  const device = alarms.filter((a) => a.desc === '设备超时').length
+  const event = alarms.filter((a) => a.desc === '火灾报警' || a.desc === '故障报警').length
+  const base = getKpiCards(period)
+  const scale = (n: number, raw: number) => Math.max(0, Math.round(raw || n * ratio))
+  return [
+    { label: '待处置', value: scale(base[0].value, pending) },
+    { label: '处置超时', value: scale(base[1].value, Math.ceil(pending * 0.4)) },
+    { label: '设备告警', value: scale(base[2].value, device) },
+    { label: '事件上报', value: scale(base[3].value, event) },
+  ]
+}
+
+export function getLevelDistributionFromAlarms(alarms: AlarmListItem[]) {
+  const levels = ['一级告警', '二级告警', '三级告警', '四级告警'] as const
+  const counts = Object.fromEntries(levels.map((l) => [l, 0])) as Record<(typeof levels)[number], number>
+  alarms.forEach((a) => {
+    if (a.level in counts) counts[a.level as keyof typeof counts] += 1
+  })
+  const total = alarms.length || 1
+  return levels.map((name) => ({
+    name,
+    value: +((counts[name] / total) * 100).toFixed(1),
+  }))
+}
+
+export function getTrendDataScaled(range: 'today' | 'month' | 'year', ratio = 1) {
+  const { x, data } = getTrendData(range)
+  return {
+    x,
+    data: data.map((v) => Math.max(0, Math.round(v * ratio))),
+  }
+}
+
+/** 各小区告警数量统计 */
+export function getCommunityAlarmStats(alarms: AlarmListItem[]) {
+  const counts = Object.fromEntries(COMMUNITIES.map((c) => [c, 0])) as Record<string, number>
+  alarms.forEach((a) => {
+    const c = a.community?.trim()
+    if (c && c in counts) counts[c] += 1
+  })
+  return COMMUNITIES.map((name) => ({ name, value: counts[name] ?? 0 })).filter((d) => d.value > 0)
 }
 
 export function getTrendData(range: 'today' | 'month' | 'year') {

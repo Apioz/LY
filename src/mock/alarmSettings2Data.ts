@@ -1,5 +1,6 @@
 import type { AlarmLevel } from '../pages/alarm/constants'
 import { DEFAULT_TIMEOUT_MINUTES } from '../pages/alarm/constants'
+import { COMMUNITIES } from '../constants/communities'
 import { formatThresholdDisplay, type ThresholdMode } from '../store/alarmSync'
 
 /** 设备目录：一级类别 → 二级子类 → 三级设备名称（三级仅用于统计子级数量） */
@@ -31,6 +32,8 @@ export const DEFAULT_WORK_ORDER_DELAY_MINUTES = 5
 
 export interface AlarmDeviceRule2 {
   key: string
+  /** 小区名称 */
+  community: string
   rootCategory: string
   subCategory: string
   level: AlarmLevel | string
@@ -53,6 +56,7 @@ export interface AlarmSettings2TreeRow {
   rowType: AlarmSettings2RowType
   rootCategory?: string
   subCategory?: string
+  community?: string
   childCount?: number
   thresholdDisplay?: string
   level?: string
@@ -99,6 +103,7 @@ function buildInitialRules(): AlarmDeviceRule2[] {
 
       rules.push({
         key: `cat-init-${seq}`,
+        community: COMMUNITIES[seq % COMMUNITIES.length],
         rootCategory,
         subCategory,
         level: LEVELS[seq % LEVELS.length],
@@ -153,6 +158,7 @@ export function ruleToSubCategoryPath(rule: AlarmDeviceRule2): string[] {
 export interface AlarmSettings2DisplayFilter {
   keyword?: string
   level?: string
+  community?: string
   dateStart?: number
   dateEnd?: number
 }
@@ -172,6 +178,9 @@ function subCategoryMatchesFilter(
   }
   if (filter.level) {
     if (!rule || rule.level !== filter.level) return false
+  }
+  if (filter.community) {
+    if (!rule || rule.community !== filter.community) return false
   }
   if (filter.dateStart !== undefined && filter.dateEnd !== undefined) {
     if (!rule) return false
@@ -204,6 +213,7 @@ export function buildAlarmSettings2Tree(
         rowType: 'category',
         rootCategory,
         subCategory,
+        community: rule.community,
         childCount: getSubCategoryDeviceCount(rootCategory, subCategory),
         thresholdDisplay: rule.thresholdDisplay,
         level: rule.level,
@@ -233,6 +243,7 @@ export function findDeviceRule(rules: AlarmDeviceRule2[], key: string) {
 export function createSubCategoryRule(
   partial: Pick<
     AlarmDeviceRule2,
+    | 'community'
     | 'rootCategory'
     | 'subCategory'
     | 'level'
@@ -246,6 +257,7 @@ export function createSubCategoryRule(
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
   return {
     key: `cat-${keySuffix ?? Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    community: partial.community,
     rootCategory: partial.rootCategory,
     subCategory: partial.subCategory,
     level: partial.level,
@@ -279,6 +291,7 @@ export function ruleToDevicePath(rule: AlarmDeviceRule2): string[] {
 export function createDeviceRule(
   partial: Pick<
     AlarmDeviceRule2,
+    | 'community'
     | 'rootCategory'
     | 'subCategory'
     | 'level'
@@ -289,7 +302,10 @@ export function createDeviceRule(
   > & { deviceName?: string },
   keySuffix?: string,
 ): AlarmDeviceRule2 {
-  return createSubCategoryRule(partial, keySuffix)
+  return createSubCategoryRule(
+    { ...partial, community: partial.community ?? COMMUNITIES[0] },
+    keySuffix,
+  )
 }
 
 export { DEFAULT_TIMEOUT_MINUTES }

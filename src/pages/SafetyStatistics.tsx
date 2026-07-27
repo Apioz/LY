@@ -9,8 +9,10 @@ import {
   getRectificationPieByTime,
   getSafetyLevelPieByTime,
   getHazardTop5ByTime,
+  getSafetyCommunityStats,
   type SafetyStatsTimeFilter,
 } from '../mock/data'
+import { COMMUNITIES } from '../constants/communities'
 
 const QUARTER_OPTIONS = [
   { value: 1, label: '第一季度' },
@@ -23,13 +25,14 @@ function buildTimeFilter(
   period: SafetyStatsTimeFilter['period'],
   date: Dayjs,
   quarter: number,
+  communities: string[],
 ): SafetyStatsTimeFilter {
-  const year = period === 'year' ? date.year() : date.year()
   return {
     period,
-    year,
-    month: period === 'month' ? date.month() + 1 : date.month() + 1,
+    year: date.year(),
+    month: date.month() + 1,
     quarter,
+    communities: communities.length ? communities : undefined,
   }
 }
 
@@ -37,13 +40,14 @@ export default function SafetyStatistics() {
   const [period, setPeriod] = useState<SafetyStatsTimeFilter['period']>('quarter')
   const [date, setDate] = useState<Dayjs>(dayjs('2023-06'))
   const [quarter, setQuarter] = useState(2)
+  const [communityFilter, setCommunityFilter] = useState<string[]>([])
   const [timeFilter, setTimeFilter] = useState<SafetyStatsTimeFilter>(() =>
-    buildTimeFilter('quarter', dayjs('2023-06'), 2),
+    buildTimeFilter('quarter', dayjs('2023-06'), 2, []),
   )
 
   const applyFilter = useCallback(() => {
-    setTimeFilter(buildTimeFilter(period, date, quarter))
-  }, [period, date, quarter])
+    setTimeFilter(buildTimeFilter(period, date, quarter, communityFilter))
+  }, [period, date, quarter, communityFilter])
 
   const lineSource = useMemo(() => getSafetyLineChart(timeFilter), [timeFilter])
 
@@ -123,9 +127,31 @@ export default function SafetyStatistics() {
 
   const hazardTop5 = useMemo(() => getHazardTop5ByTime(timeFilter), [timeFilter])
 
+  const communityChart = useMemo(() => {
+    const data = getSafetyCommunityStats(timeFilter)
+    return {
+      tooltip: { trigger: 'axis' },
+      grid: { left: 48, right: 16, top: 24, bottom: 64 },
+      xAxis: {
+        type: 'category',
+        data: data.map((d) => d.name),
+        axisLabel: { interval: 0, rotate: 30 },
+      },
+      yAxis: { type: 'value', minInterval: 1, name: '检查工单数' },
+      series: [
+        {
+          type: 'bar',
+          data: data.map((d) => d.value),
+          itemStyle: { color: '#1890ff' },
+          barMaxWidth: 36,
+        },
+      ],
+    }
+  }, [timeFilter])
+
   const handlePeriodChange = (next: SafetyStatsTimeFilter['period']) => {
     setPeriod(next)
-    setTimeFilter(buildTimeFilter(next, date, quarter))
+    setTimeFilter(buildTimeFilter(next, date, quarter, communityFilter))
   }
 
   const timeControl =
@@ -134,7 +160,7 @@ export default function SafetyStatistics() {
         value={quarter}
         onChange={(q) => {
           setQuarter(q)
-          setTimeFilter(buildTimeFilter(period, date, q))
+          setTimeFilter(buildTimeFilter(period, date, q, communityFilter))
         }}
         style={{ width: 140 }}
         options={QUARTER_OPTIONS}
@@ -146,7 +172,7 @@ export default function SafetyStatistics() {
         onChange={(d) => {
           if (!d) return
           setDate(d)
-          setTimeFilter(buildTimeFilter(period, d, quarter))
+          setTimeFilter(buildTimeFilter(period, d, quarter, communityFilter))
         }}
         allowClear={false}
       />
@@ -154,18 +180,45 @@ export default function SafetyStatistics() {
 
   return (
     <div style={{ padding: 16 }}>
-      <Space wrap size="middle" style={{ marginBottom: 16 }}>
-        <span>时间选择：</span>
-        <Radio.Group value={period} onChange={(e) => handlePeriodChange(e.target.value)}>
-          <Radio.Button value="month">月</Radio.Button>
-          <Radio.Button value="quarter">季</Radio.Button>
-          <Radio.Button value="year">年</Radio.Button>
-        </Radio.Group>
-        {timeControl}
-        <Button type="primary" onClick={applyFilter}>
-          查询
-        </Button>
-      </Space>
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space wrap size="middle">
+          <span style={{ fontSize: 16, fontWeight: 600 }}>安全检查统计</span>
+          <span>小区名称：</span>
+          <Select
+            mode="multiple"
+            placeholder="全部小区"
+            style={{ minWidth: 200, maxWidth: 360 }}
+            allowClear
+            maxTagCount="responsive"
+            value={communityFilter}
+            onChange={setCommunityFilter}
+            options={COMMUNITIES.map((v) => ({ value: v, label: v }))}
+          />
+          <span>时间选择：</span>
+          <Radio.Group value={period} onChange={(e) => handlePeriodChange(e.target.value)}>
+            <Radio.Button value="month">月</Radio.Button>
+            <Radio.Button value="quarter">季</Radio.Button>
+            <Radio.Button value="year">年</Radio.Button>
+          </Radio.Group>
+          {timeControl}
+          <Button type="primary" onClick={applyFilter}>
+            查询
+          </Button>
+        </Space>
+      </Card>
+
+      <Card
+        title={
+          communityFilter.length
+            ? `各小区安全检查统计（已选 ${communityFilter.length} 个小区）`
+            : '各小区安全检查统计'
+        }
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
+        <ReactECharts option={communityChart} style={{ height: 260 }} notMerge />
+      </Card>
+
       <Row gutter={[16, 16]}>
         <Col span={12}>
           <Card title="按安全类别统计" size="small">

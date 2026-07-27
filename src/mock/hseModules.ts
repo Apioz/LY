@@ -54,8 +54,8 @@ export const drillPlanColumns = [
 export const archiveProjectRows = [
   {
     key: '1',
-    plotNo: 'BAE71Bdd3D2',
-    plotName: '天山路473',
+    communityNo: 'BAE71Bdd3D2',
+    communityName: '天山路473',
     abbr: 'TSL',
     address: '天山路473号',
     center: '南区租赁管理中心',
@@ -69,8 +69,8 @@ export const archiveProjectRows = [
   },
   {
     key: '2',
-    plotNo: 'BBX001',
-    plotName: '双翼大厦',
+    communityNo: 'BBX001',
+    communityName: '双翼大厦',
     abbr: 'SFDX',
     address: '双翼大厦',
     center: '中区物业管理中心',
