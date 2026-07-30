@@ -49,8 +49,18 @@ import { COMMUNITIES, matchesCommunityName } from '../../constants/communities'
 
 const { Text } = Typography
 
-const COL_WIDTH = 140
-const COLUMN_COUNT = 8
+const COL_WIDTH = 148
+const COLUMN_WIDTHS = {
+  community: COL_WIDTH,
+  device: COL_WIDTH + 16,
+  childCount: COL_WIDTH - 28,
+  threshold: COL_WIDTH,
+  level: COL_WIDTH - 28,
+  workOrder: COL_WIDTH + 8,
+  createTime: COL_WIDTH + 24,
+  action: COL_WIDTH,
+} as const
+const TABLE_SCROLL_X = Object.values(COLUMN_WIDTHS).reduce((sum, w) => sum + w, 0)
 const NONE_THRESHOLD_TIP = '仅启用第三方推送的告警信息，不做额外阈值设置。'
 const DEVICE_TIMEOUT_TIP =
   '本系统对设备状态做监控，设备超过设定离线判定时长未响应将被判定为离线并触发设备超时报警。'
@@ -312,41 +322,41 @@ export default function AlarmSettings2() {
     {
       title: '小区名称',
       dataIndex: 'community',
-      width: 120,
+      width: COLUMN_WIDTHS.community,
       ellipsis: true,
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '告警设备',
       dataIndex: 'name',
-      width: COL_WIDTH,
+      width: COLUMN_WIDTHS.device,
       ellipsis: true,
     },
     {
       title: '子级数量',
       dataIndex: 'childCount',
-      width: 100,
+      width: COLUMN_WIDTHS.childCount,
       align: 'center',
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '阈值',
       dataIndex: 'thresholdDisplay',
-      width: COL_WIDTH,
+      width: COLUMN_WIDTHS.threshold,
       ellipsis: true,
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '告警等级',
       dataIndex: 'level',
-      width: 100,
+      width: COLUMN_WIDTHS.level,
       align: 'center',
       render: (v, record) =>
         isCategoryRow(record) ? <Tag color={LEVEL_COLORS[v]}>{v}</Tag> : '',
     },
     {
       title: '是否生成工单',
-      width: 168,
+      width: COLUMN_WIDTHS.workOrder,
       align: 'center',
       render: (_v, record) =>
         isCategoryRow(record)
@@ -359,13 +369,13 @@ export default function AlarmSettings2() {
     {
       title: '创建时间',
       dataIndex: 'createTime',
-      width: COL_WIDTH,
+      width: COLUMN_WIDTHS.createTime,
       ellipsis: true,
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '操作',
-      width: 140,
+      width: COLUMN_WIDTHS.action,
       align: 'center',
       fixed: 'right',
       render: (_v, record) =>
@@ -525,7 +535,7 @@ export default function AlarmSettings2() {
             disabled: record.rowType !== 'category',
           }),
         }}
-        scroll={{ x: COL_WIDTH * COLUMN_COUNT + 48 }}
+        scroll={{ x: TABLE_SCROLL_X }}
         style={{ padding: '0 16px 16px' }}
       />
       <Modal
