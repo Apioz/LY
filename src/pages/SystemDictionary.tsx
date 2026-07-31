@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Table, Input, Space, Modal, Form, Switch, Row, Col } from 'antd'
+import { Input, Space, Modal, Form, Switch, Row, Col } from 'antd'
+import AdminTable from '../components/AdminTable'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
 import { dictRows } from '../mock/data'
@@ -48,7 +49,7 @@ export default function SystemDictionary() {
         </Space>
       </SearchBar>
       <TableToolbar showBatchDelete={false} onAdd={() => setModalOpen(true)} />
-      <Table
+      <AdminTable
         rowKey="code"
         columns={columns}
         dataSource={dictRows}

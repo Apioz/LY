@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react'
-import { Row, Col, Card, Radio, DatePicker, Button, Table, Space, Select } from 'antd'
+import { Row, Col, Card, Radio, DatePicker, Button, Space, Select } from 'antd'
+import AdminTable from '../components/AdminTable'
 import ReactECharts from 'echarts-for-react'
 import dayjs, { Dayjs } from 'dayjs'
 import {
@@ -242,7 +243,7 @@ export default function SafetyStatistics() {
                 <ReactECharts option={safetyLevelPie} style={{ height: 320 }} notMerge />
               </Col>
               <Col span={10}>
-                <Table
+                <AdminTable
                   size="small"
                   pagination={false}
                   style={{ marginTop: 24 }}
@@ -259,7 +260,7 @@ export default function SafetyStatistics() {
         </Col>
         <Col span={24}>
           <Card title="按隐患及复出问题TOP5" size="small">
-            <Table
+            <AdminTable
               size="small"
               pagination={false}
               locale={{ emptyText: '暂无数据' }}

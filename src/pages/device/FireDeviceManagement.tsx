@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Table, Select, Input, Space, Button, Row, Col, Card, Statistic } from 'antd'
+import { Select, Input, Space, Button, Row, Col, Card, Statistic } from 'antd'
+import AdminTable from '../../components/AdminTable'
 import {
   LinkOutlined,
   ExportOutlined,
@@ -20,7 +21,6 @@ import {
 } from '../../mock/deviceData'
 import { COMMUNITIES, matchesCommunityName } from '../../constants/communities'
 
-const COL_WIDTH = 120
 
 function renderCell(v?: string) {
   return v?.trim() ? v : '—'
@@ -80,19 +80,16 @@ export default function FireDeviceManagement() {
       {
         title: '设备类型',
         dataIndex: 'ID_设备类型',
-        width: COL_WIDTH,
         render: renderCell,
       },
       {
         title: '对接地址',
         dataIndex: 'dockAddress',
-        width: COL_WIDTH,
         render: renderCell,
       },
       {
         title: '序列号/SN',
         dataIndex: 'serialNo',
-        width: COL_WIDTH,
         render: renderCell,
       },
       {
@@ -104,13 +101,11 @@ export default function FireDeviceManagement() {
       {
         title: 'IP地址',
         dataIndex: 'ipAddress',
-        width: COL_WIDTH,
         render: renderCell,
       },
       {
         title: '型号',
         dataIndex: 'model',
-        width: COL_WIDTH,
         render: renderCell,
       },
       {
@@ -213,10 +208,8 @@ export default function FireDeviceManagement() {
           <Button type="text" icon={<FullscreenOutlined />} />
         </Space>
       </div>
-      <Table
+      <AdminTable
         rowKey="key"
-        tableLayout="fixed"
-        scroll={{ x: COL_WIDTH * 10 + 730 }}
         columns={columns}
         dataSource={filteredRows}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}

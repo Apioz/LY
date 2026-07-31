@@ -1,4 +1,5 @@
-import { Calendar, Badge, Table, Select, Space } from 'antd'
+import { Calendar, Badge, Select, Space } from 'antd'
+import AdminTable from '../components/AdminTable'
 import type { Dayjs } from 'dayjs'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
@@ -54,7 +55,7 @@ export function InspectionProjectSettings() {
         <Select placeholder="请输入程序名称" style={{ width: 240 }} showSearch allowClear />
       </SearchBar>
       <TableToolbar />
-      <Table rowKey="id" columns={columns} dataSource={programRows} pagination={{ total: 14, showTotal: (t) => `共 ${t} 条` }} style={{ padding: '0 16px 16px' }} />
+      <AdminTable rowKey="id" columns={columns} dataSource={programRows} pagination={{ total: 14, showTotal: (t) => `共 ${t} 条` }} style={{ padding: '0 16px 16px' }} />
     </>
   )
 }
@@ -81,7 +82,7 @@ export function AcceptanceWorkOrder() {
           <Select placeholder="请选择验收状态" style={{ width: 180 }} allowClear />
         </Space>
       </SearchBar>
-      <Table columns={columns} dataSource={[]} locale={{ emptyText: '暂无' }} style={{ padding: 16 }} />
+      <AdminTable columns={columns} dataSource={[]} locale={{ emptyText: '暂无' }} style={{ padding: 16 }} />
     </>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Table, Input, Space, Modal, Form, Tree, message, Button } from 'antd'
+import { Input, Space, Modal, Form, Tree, message, Button } from 'antd'
+import AdminTable from '../components/AdminTable'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
 import { programRows as initialProgramRows, inspectionTree } from '../mock/data'
@@ -133,7 +134,7 @@ export default function InspectionContentEntry() {
         onBatchDelete={handleBatchDelete}
         onClearSelection={() => setSelected([])}
       />
-      <Table
+      <AdminTable
         rowKey="id"
         columns={columns}
         dataSource={data}

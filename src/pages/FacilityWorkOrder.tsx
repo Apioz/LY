@@ -1,21 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Table,
-  Select,
-  Space,
-  DatePicker,
-  Tag,
-  Modal,
-  Descriptions,
-  Alert,
-  Button,
-  Divider,
-  Typography,
-} from 'antd'
+import { Select, Space, DatePicker, Tag, Modal, Descriptions, Alert, Button, Divider, Typography } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import SearchBar from '../components/SearchBar'
+import AdminTable from '../components/AdminTable'
 import FacilityWorkOrderSettingsModal from '../components/FacilityWorkOrderSettingsModal'
 import FacilityFlowTimeline from '../components/FacilityFlowTimeline'
 import {
@@ -51,7 +40,6 @@ const processStatusColor: Record<string, string> = {
   已处理: 'success',
 }
 
-const COL_WIDTH = 120
 
 function matchMonth(alarmTime: string, month: Dayjs) {
   return alarmTime.startsWith(month.format('YYYY-MM'))
@@ -109,41 +97,35 @@ export default function FacilityWorkOrder() {
 
   const columns: ColumnsType<FacilityOrderItem> = useMemo(
     () => [
-      { title: '序号', width: 64, align: 'center', render: (_v, _r, i) => i + 1 },
-      { title: '工单编号', dataIndex: 'id', width: COL_WIDTH, ellipsis: true },
+      { title: '序号', align: 'center', render: (_v, _r, i) => i + 1 },
+      { title: '工单编号', dataIndex: 'id', ellipsis: true },
       {
         title: '小区名称',
         dataIndex: 'community',
-        width: COL_WIDTH,
         ellipsis: true,
         render: (v: string) => v || '—',
       },
       {
         title: '告警设备',
         dataIndex: 'alarmDevice',
-        width: COL_WIDTH,
         ellipsis: true,
         render: (v: string) => v || '-',
       },
       {
         title: '安装位置',
         dataIndex: 'installLocation',
-        width: COL_WIDTH,
         ellipsis: true,
         render: (v: string) => v || '-',
       },
       {
         title: '告警等级',
         dataIndex: 'level',
-        width: COL_WIDTH,
         align: 'center',
         render: (v: string) => <Tag color={LEVEL_COLORS[v]}>{v}</Tag>,
       },
-      { title: '告警描述', dataIndex: 'desc', width: COL_WIDTH, ellipsis: true },
-      { title: '告警时间', dataIndex: 'alarmTime', width: COL_WIDTH, ellipsis: true },
-      {
-        title: '工单状态',
-        width: 100,
+      { title: '告警描述', dataIndex: 'desc', ellipsis: true },
+      { title: '告警时间', dataIndex: 'alarmTime', ellipsis: true },
+      { title: '工单状态',
         align: 'center',
         render: (_v, record) => {
           const view = resolveFacilityStatusView(record, undefined, now)
@@ -154,7 +136,6 @@ export default function FacilityWorkOrder() {
       },
       {
         title: '处理状态',
-        width: 110,
         align: 'center',
         render: (_v, record) => {
           const view = resolveFacilityStatusView(record, undefined, now)
@@ -165,7 +146,6 @@ export default function FacilityWorkOrder() {
       },
       {
         title: '剩余天数',
-        width: COL_WIDTH,
         align: 'center',
         render: (_v, record) => {
           const view = resolveFacilityStatusView(record, undefined, now)
@@ -173,10 +153,8 @@ export default function FacilityWorkOrder() {
           return <span style={{ color: facilitySlaColorHex(view.color), fontWeight: 500 }}>{view.label}</span>
         },
       },
-      { title: '接单人', dataIndex: 'receiver', width: COL_WIDTH, ellipsis: true },
-      {
-        title: '操作',
-        width: 80,
+      { title: '接单人', dataIndex: 'receiver', ellipsis: true },
+      { title: '操作',
         fixed: 'right',
         align: 'center',
         render: (_v, record) => <a onClick={() => setDetailId(record.id)}>查看</a>,
@@ -184,9 +162,6 @@ export default function FacilityWorkOrder() {
     ],
     [now],
   )
-
-
-  const scrollX = COL_WIDTH * 10 + 64 + 80 + 20
 
   return (
     <>
@@ -251,12 +226,10 @@ export default function FacilityWorkOrder() {
         style={{ margin: '0 16px 12px' }}
         message="工单状态与处理状态对应：待处理→待处理/超时待处理；处理中→处理中/逾期处理中；已处理→已处理；损坏→损坏待处理。损坏工单不参与「未处理超时」监控；再次接单后的「完成逾期」与其他工单一致。"
       />
-      <Table
+      <AdminTable
         rowKey="id"
-        tableLayout="fixed"
         columns={columns}
         dataSource={filtered}
-        scroll={{ x: scrollX }}
         pagination={{ showTotal: (t) => `共 ${t} 条`, pageSize: 10, showSizeChanger: true }}
         style={{ padding: '0 16px 16px' }}
       />

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Table, Select, Space, Button } from 'antd'
+import { Select, Space, Button } from 'antd'
+import AdminTable from '../components/AdminTable'
 import SearchBar from '../components/SearchBar'
 import { allInspectionRows } from '../mock/data'
 import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
@@ -69,7 +70,7 @@ export default function AllInspections() {
           />
         </Space>
       </SearchBar>
-      <Table
+      <AdminTable
         rowKey="orderId"
         columns={columns}
         dataSource={filtered}

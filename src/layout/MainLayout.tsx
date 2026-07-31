@@ -236,7 +236,9 @@ export default function MainLayout({ activeKey, onNavigate, children, onSwitchMo
             style={{ marginBottom: 0 }}
           />
         </div>
-        <Content style={{ margin: 12, background: '#fff', minHeight: 360 }}>{children}</Content>
+        <Content className="admin-layout" style={{ margin: 12, background: '#fff', minHeight: 360 }}>
+          {children}
+        </Content>
       </Layout>
     </Layout>
   )

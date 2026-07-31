@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Table, Select, Space, DatePicker, Tag, Modal, Descriptions, message, Button } from 'antd'
+import { Select, Space, DatePicker, Tag, Modal, Descriptions, message, Button } from 'antd'
+import AdminTable from '../../components/AdminTable'
 import SearchBar from '../../components/SearchBar'
 import { ALARM_LEVELS, ALARM_STATUS, ALARM_DESC_TYPES, LEVEL_COLORS } from './constants'
 import type { AlarmListItem } from '../../mock/alarmData'
@@ -208,7 +209,7 @@ export default function AlarmList() {
           <DatePicker.RangePicker />
         </Space>
       </SearchBar>
-      <Table
+      <AdminTable
         rowKey="id"
         columns={columns}
         dataSource={filtered}

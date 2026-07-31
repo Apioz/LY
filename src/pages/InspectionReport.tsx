@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Table, Select, DatePicker, Tabs, Space, Button } from 'antd'
+import { Select, DatePicker, Tabs, Space, Button } from 'antd'
+import AdminTable from '../components/AdminTable'
 import { ExportOutlined, ReloadOutlined, ColumnHeightOutlined, FullscreenOutlined } from '@ant-design/icons'
 import SearchBar from '../components/SearchBar'
 import { inspectionReportRows } from '../mock/data'
@@ -86,7 +87,7 @@ export default function InspectionReport() {
           }
         />
       </div>
-      <Table
+      <AdminTable
         rowKey="id"
         columns={reportColumns}
         dataSource={filtered}

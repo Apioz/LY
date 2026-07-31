@@ -1,20 +1,6 @@
 import { useState } from 'react'
-import {
-  Table,
-  Input,
-  Space,
-  Button,
-  Modal,
-  Form,
-  Select,
-  Row,
-  Col,
-  DatePicker,
-  TimePicker,
-  InputNumber,
-  message,
-  Descriptions,
-} from 'antd'
+import { Input, Space, Button, Modal, Form, Select, Row, Col, DatePicker, TimePicker, InputNumber, message, Descriptions } from 'antd'
+import AdminTable from '../components/AdminTable'
 import dayjs from 'dayjs'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
@@ -291,7 +277,7 @@ export default function InspectionPlanSetting() {
         <Input placeholder="请输入检查名称" style={{ width: 240 }} />
       </SearchBar>
       <TableToolbar selectedCount={selected.length} onAdd={() => openModal('add')} onClearSelection={() => setSelected([])} />
-      <Table
+      <AdminTable
         rowKey="plan"
         scroll={{ x: 1600 }}
         columns={columns}

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { Table, Form, Input, Select, Space, Modal, Descriptions, Button, Upload, message } from 'antd'
+import { Form, Input, Select, Space, Modal, Descriptions, Button, Upload, message } from 'antd'
+import AdminTable from '../components/AdminTable'
 import { UploadOutlined, PrinterOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from '@rc-component/qrcode'
 import SearchBar from '../components/SearchBar'
@@ -282,7 +283,7 @@ export default function InspectionPointSetting() {
         showBatchPrintQr
         onBatchPrintQr={handleBatchPrintQr}
       />
-      <Table
+      <AdminTable
         rowKey="id"
         columns={columns}
         dataSource={filteredData}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Table, Input, Space, Modal, Form, Select, Row, Col, Descriptions, Button } from 'antd'
+import { Input, Space, Modal, Form, Select, Row, Col, Descriptions, Button } from 'antd'
+import AdminTable from '../components/AdminTable'
 import type { ColumnsType } from 'antd/es/table'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
@@ -113,7 +114,7 @@ export default function InspectionContentConfig() {
         }}
         onClearSelection={() => setSelected([])}
       />
-      <Table<ConfigRow>
+      <AdminTable<ConfigRow>
         rowKey="key"
         columns={columns}
         dataSource={data}

@@ -1,4 +1,5 @@
-import { Table, Input, Select, Space, DatePicker, Button } from 'antd'
+import { Input, Select, Space, DatePicker, Button } from 'antd'
+import AdminTable from '../../components/AdminTable'
 import { ExportOutlined, ReloadOutlined, ColumnHeightOutlined, SearchOutlined } from '@ant-design/icons'
 import SearchBar from '../../components/SearchBar'
 import { fireEventAlarmRows } from '../../mock/deviceData'
@@ -36,7 +37,7 @@ export default function FireEventAlarm() {
           <Button type="text" icon={<SearchOutlined />} />
         </Space>
       </div>
-      <Table
+      <AdminTable
         rowKey="key"
         columns={columns}
         dataSource={fireEventAlarmRows}

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Table,
   Space,
   Modal,
   Form,
@@ -22,6 +21,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import SearchBar from '../../components/SearchBar'
 import TableToolbar from '../../components/TableToolbar'
+import AdminTable from '../../components/AdminTable'
 import { ALARM_LEVELS, LEVEL_COLORS } from './constants'
 import { formatThresholdDisplay, type ThresholdMode } from '../../store/alarmSync'
 import {
@@ -49,18 +49,6 @@ import { COMMUNITIES, matchesCommunityName } from '../../constants/communities'
 
 const { Text } = Typography
 
-const COL_WIDTH = 148
-const COLUMN_WIDTHS = {
-  community: COL_WIDTH,
-  device: COL_WIDTH + 16,
-  childCount: COL_WIDTH - 28,
-  threshold: COL_WIDTH,
-  level: COL_WIDTH - 28,
-  workOrder: COL_WIDTH + 8,
-  createTime: COL_WIDTH + 24,
-  action: COL_WIDTH,
-} as const
-const TABLE_SCROLL_X = Object.values(COLUMN_WIDTHS).reduce((sum, w) => sum + w, 0)
 const NONE_THRESHOLD_TIP = '仅启用第三方推送的告警信息，不做额外阈值设置。'
 const DEVICE_TIMEOUT_TIP =
   '本系统对设备状态做监控，设备超过设定离线判定时长未响应将被判定为离线并触发设备超时报警。'
@@ -322,41 +310,35 @@ export default function AlarmSettings2() {
     {
       title: '小区名称',
       dataIndex: 'community',
-      width: COLUMN_WIDTHS.community,
       ellipsis: true,
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '告警设备',
       dataIndex: 'name',
-      width: COLUMN_WIDTHS.device,
       ellipsis: true,
     },
     {
       title: '子级数量',
       dataIndex: 'childCount',
-      width: COLUMN_WIDTHS.childCount,
       align: 'center',
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '阈值',
       dataIndex: 'thresholdDisplay',
-      width: COLUMN_WIDTHS.threshold,
       ellipsis: true,
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '告警等级',
       dataIndex: 'level',
-      width: COLUMN_WIDTHS.level,
       align: 'center',
       render: (v, record) =>
         isCategoryRow(record) ? <Tag color={LEVEL_COLORS[v]}>{v}</Tag> : '',
     },
     {
       title: '是否生成工单',
-      width: COLUMN_WIDTHS.workOrder,
       align: 'center',
       render: (_v, record) =>
         isCategoryRow(record)
@@ -369,13 +351,11 @@ export default function AlarmSettings2() {
     {
       title: '创建时间',
       dataIndex: 'createTime',
-      width: COLUMN_WIDTHS.createTime,
       ellipsis: true,
       render: (v, record) => (isCategoryRow(record) ? v : ''),
     },
     {
       title: '操作',
-      width: COLUMN_WIDTHS.action,
       align: 'center',
       fixed: 'right',
       render: (_v, record) =>
@@ -511,10 +491,9 @@ export default function AlarmSettings2() {
         onBatchDelete={handleBatchDelete}
         onClearSelection={() => setSelected([])}
       />
-      <Table<AlarmSettings2TreeRow>
+      <AdminTable<AlarmSettings2TreeRow>
         rowKey="key"
         size="middle"
-        tableLayout="fixed"
         columns={columns}
         dataSource={treeData}
         expandable={{
@@ -535,7 +514,6 @@ export default function AlarmSettings2() {
             disabled: record.rowType !== 'category',
           }),
         }}
-        scroll={{ x: TABLE_SCROLL_X }}
         style={{ padding: '0 16px 16px' }}
       />
       <Modal

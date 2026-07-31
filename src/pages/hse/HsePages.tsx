@@ -1,17 +1,6 @@
 import { useState } from 'react'
-import {
-  Table,
-  Input,
-  Select,
-  Space,
-  Button,
-  Row,
-  Col,
-  Card,
-  Statistic,
-  Tabs,
-  Tag,
-} from 'antd'
+import { Input, Select, Space, Button, Row, Col, Card, Statistic, Tabs, Tag } from 'antd'
+import AdminTable from '../../components/AdminTable'
 import {
   PlusOutlined,
   ExportOutlined,
@@ -62,7 +51,7 @@ export function SafetyNormPage() {
         </Space>
       </SearchBar>
       <TableToolbar showBatchDelete={false} onAdd={() => {}} showExport />
-      <Table
+      <AdminTable
         rowKey="key"
         columns={[
           { title: '#', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
@@ -103,7 +92,7 @@ export function TrainingMaterialsPage() {
         <Input placeholder="请输入资料名称" style={{ width: 240 }} />
       </SearchBar>
       <TableToolbar showBatchDelete={false} onAdd={() => {}} />
-      <Table
+      <AdminTable
         rowKey="key"
         columns={[
           { title: '资料名称', dataIndex: 'name' },
@@ -162,7 +151,7 @@ export function PersonnelQualificationPage() {
           <Button icon={<ExportOutlined />} style={{ color: '#52c41a', borderColor: '#52c41a' }}>导出</Button>
         </Space>
       </div>
-      <Table
+      <AdminTable
         rowKey="key"
         scroll={{ x: 1400 }}
         columns={[
@@ -216,7 +205,7 @@ export function DrillPlanPage() {
           <Button style={{ color: '#52c41a', borderColor: '#52c41a' }}>导出</Button>
         </Space>
       </div>
-      <Table
+      <AdminTable
         locale={{ emptyText: '暂无数据' }}
         scroll={{ x: 2000 }}
         columns={[
@@ -269,7 +258,7 @@ export function DrillImplementPage() {
           <Button type="text" icon={<TableOutlined />} />
         </Space>
       </div>
-      <Table
+      <AdminTable
         locale={{ emptyText: '暂无数据' }}
         scroll={{ x: 2400 }}
         columns={[
@@ -325,7 +314,7 @@ function ArchiveListPage({
         {filters}
       </SearchBar>
       <TableToolbar selectedCount={selected.length} onAdd={() => {}} showExport onClearSelection={() => setSelected([])} />
-      <Table
+      <AdminTable
         rowKey="key"
         scroll={{ x: 1600 }}
         columns={columns}
@@ -543,7 +532,7 @@ export function SpecialEquipmentPage() {
           <Button style={{ color: '#fa8c16', borderColor: '#fa8c16' }}>导出</Button>
         </Space>
       </div>
-      <Table
+      <AdminTable
         rowKey="key"
         scroll={{ x: 2200 }}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
@@ -595,7 +584,7 @@ export function GasEquipmentPage() {
         </Space>
       </SearchBar>
       <TableToolbar selectedCount={selected.length} onAdd={() => {}} showExport onClearSelection={() => setSelected([])} />
-      <Table
+      <AdminTable
         rowKey="key"
         scroll={{ x: 2000 }}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
@@ -645,7 +634,7 @@ export function ChargingPilePage() {
         ]}
       />
       <TableToolbar selectedCount={selected.length} onAdd={() => {}} showExport onClearSelection={() => setSelected([])} />
-      <Table
+      <AdminTable
         rowKey="key"
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected }}
         columns={[

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
-import { Table, Select, Input, Space, Button, Row, Col, Card, Statistic } from 'antd'
+import { Select, Input, Space, Button, Row, Col, Card, Statistic } from 'antd'
+import AdminTable from '../../components/AdminTable'
 
 import {
 
@@ -170,8 +171,6 @@ export default function MonitorDeviceManagement() {
 
         dataIndex: 'ID_设备类型',
 
-        width: COL_WIDTH,
-
         render: renderCell,
 
       },
@@ -182,8 +181,6 @@ export default function MonitorDeviceManagement() {
 
         dataIndex: 'dockAddress',
 
-        width: COL_WIDTH,
-
         render: renderCell,
 
       },
@@ -193,8 +190,6 @@ export default function MonitorDeviceManagement() {
         title: '序列号/SN',
 
         dataIndex: 'serialNo',
-
-        width: COL_WIDTH,
 
         render: renderCell,
 
@@ -229,8 +224,6 @@ export default function MonitorDeviceManagement() {
         title: '型号',
 
         dataIndex: 'model',
-
-        width: COL_WIDTH,
 
         render: renderCell,
 
@@ -458,7 +451,7 @@ export default function MonitorDeviceManagement() {
 
       </div>
 
-      <Table
+      <AdminTable
 
         rowKey="key"
 

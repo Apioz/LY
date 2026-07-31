@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Table, Select, Space } from 'antd'
+import { Select, Space } from 'antd'
+import AdminTable from '../components/AdminTable'
 import SearchBar from '../components/SearchBar'
 import TableToolbar from '../components/TableToolbar'
 import { projectSettingRows } from '../mock/data'
@@ -77,7 +78,7 @@ export default function InspectionProjectSetting() {
         </Space>
       </SearchBar>
       <TableToolbar selectedCount={selected.length} onClearSelection={() => setSelected([])} />
-      <Table
+      <AdminTable
         rowKey="name"
         columns={columns}
         dataSource={filtered}

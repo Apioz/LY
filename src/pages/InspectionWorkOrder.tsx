@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Table, Select, Space, Tag } from 'antd'
+import { Select, Space, Tag } from 'antd'
+import AdminTable from '../components/AdminTable'
 import SearchBar from '../components/SearchBar'
 import { workOrderRows } from '../mock/data'
 import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
@@ -77,7 +78,7 @@ export default function InspectionWorkOrder() {
           />
         </Space>
       </SearchBar>
-      <Table
+      <AdminTable
         rowKey="orderId"
         columns={columns}
         dataSource={filtered}

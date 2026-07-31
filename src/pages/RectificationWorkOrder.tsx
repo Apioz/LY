@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Table, Select, Space } from 'antd'
+import { Select, Space } from 'antd'
+import AdminTable from '../components/AdminTable'
 import SearchBar from '../components/SearchBar'
 import { safetyLevelOptions } from '../mock/data'
 import { COMMUNITIES, matchesCommunityName } from '../constants/communities'
@@ -69,7 +70,7 @@ export default function RectificationWorkOrder() {
           <Select placeholder="请选择整改措施" style={{ width: 160 }} allowClear />
         </Space>
       </SearchBar>
-      <Table
+      <AdminTable
         columns={columns}
         dataSource={filtered}
         scroll={{ x: 2200 }}
